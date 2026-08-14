@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Match Betting Assistant</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#171e2e; --panel2:#1e263a; --border:#2a3348;
+    --text:#e8ecf5; --muted:#96a1b8; --accent:#3ddc97; --accent2:#4a90e2;
+    --danger:#ef5a6f; --warn:#f2b84b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh;
+  }
+  header{
+    padding:20px 28px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  }
+  header h1{font-size:20px; margin:0; font-weight:700;}
+  header .sub{color:var(--muted); font-size:13px; margin-top:2px;}
+  nav{display:flex; gap:6px; padding:14px 28px; flex-wrap:wrap; border-bottom:1px solid var(--border); background:var(--panel);}
+  nav button{
+    background:transparent; border:1px solid var(--border); color:var(--muted);
+    padding:9px 16px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;
+    transition:.15s;
+  }
+  nav button:hover{color:var(--text); border-color:var(--accent2);}
+  nav button.active{background:var(--accent2); color:#fff; border-color:var(--accent2);}
+  main{padding:24px 28px 60px; max-width:1200px; margin:0 auto;}
+  .tabpage{display:none;}
+  .tabpage.active{display:block;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+  @media (max-width:850px){.grid{grid-template-columns:1fr;}}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:20px; margin-bottom:20px;
+  }
+  .card h2{margin:0 0 14px; font-size:16px;}
+  .card h3{margin:18px 0 10px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px;}
+  label{display:block; font-size:13px; color:var(--muted); margin-bottom:5px; margin-top:12px;}
+  input, select{
+    width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:9px 10px; border-radius:7px; font-size:14px;
+  }
+  input:focus, select:focus{outline:none; border-color:var(--accent2);}
+  .row{display:flex; gap:12px;}
+  .row > div{flex:1;}
+  button.primary{
+    background:var(--accent); color:#08130d; border:none; padding:10px 18px;
+    border-radius:8px; font-weight:700; cursor:pointer; font-size:14px; margin-top:16px;
+  }
+  button.primary:hover{filter:brightness(1.08);}
+  button.ghost{
+    background:transparent; border:1px solid var(--border); color:var(--muted);
+    padding:8px 14px; border-radius:7px; cursor:pointer; font-size:13px;
+  }
+  button.ghost:hover{color:var(--text); border-color:var(--accent2);}
+  button.danger-link{background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:2px 6px;}
+  .result-box{
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px;
+    padding:16px; margin-top:16px;
+  }
+  .result-row{display:flex; justify-content:space-between; padding:6px 0; font-size:14px; border-bottom:1px dashed var(--border);}
+  .result-row:last-child{border-bottom:none;}
+  .result-row .label{color:var(--muted);}
+  .result-row .val{font-weight:700;}
+  .val.good{color:var(--accent);}
+  .val.bad{color:var(--danger);}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  td{padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  tr:hover td{background:rgba(255,255,255,.02);}
+  .table-wrap{overflow-x:auto;}
+  .pill{padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; display:inline-block;}
+  .pill.ok{background:rgba(61,220,151,.15); color:var(--accent);}
+  .pill.warn{background:rgba(242,184,75,.15); color:var(--warn);}
+  .pill.danger{background:rgba(239,90,111,.15); color:var(--danger);}
+  .pill.info{background:rgba(74,144,226,.15); color:var(--accent2);}
+  .summary-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:20px;}
+  .stat{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px;}
+  .stat .num{font-size:24px; font-weight:800;}
+  .stat .lbl{font-size:12px; color:var(--muted); margin-top:4px;}
+  .form-actions{display:flex; gap:10px; align-items:center;}
+  .empty{color:var(--muted); font-size:13px; padding:20px; text-align:center;}
+  .badge-type{font-size:11px; padding:2px 8px; border-radius:6px; background:var(--panel2); color:var(--muted); border:1px solid var(--border);}
+  select[multiple]{height:auto;}
+  .field-hint{font-size:11px; color:var(--muted); margin-top:4px;}
+  .thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; background:var(--panel2); border:1px solid var(--border); display:block;}
+  .thumb-placeholder{width:44px; height:44px; border-radius:8px; background:var(--panel2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:16px;}
+  a.link-out{color:var(--accent2); font-size:12px; text-decoration:none;}
+  a.link-out:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🎯 Match Betting Assistant</h1>
+    <div class="sub">Prototipo — calcolatore, tracker profitti, gestione offerte e account</div>
+  </div>
+  <div style="font-size:12px;color:var(--muted)">Dati salvati solo in questo browser (localStorage)</div>
+</header>
+
+<nav>
+  <button class="tab-btn active" data-tab="calc">🧮 Calcolatore</button>
+  <button class="tab-btn" data-tab="tracker">📊 Tracker</button>
+  <button class="tab-btn" data-tab="offers">🎁 Offerte</button>
+  <button class="tab-btn" data-tab="accounts">👤 Account</button>
+  <button class="tab-btn" data-tab="slotstrategy">🎰 Strategia Slot</button>
+  <button class="tab-btn" data-tab="profile">🧭 Profilo & Piano</button>
+  <button class="tab-btn" data-tab="backup">💾 Backup</button>
+</nav>
+
+<main>
+
+  <!-- ===================== CALCOLATORE ===================== -->
+  <div class="tabpage active" id="tab-calc">
+    <div class="grid">
+      <div class="card">
+        <h2>Calcolatore Back / Lay</h2>
+        <label>Tipo di puntata</label>
+        <select id="calcType">
+          <option value="qualifying">Qualifying bet (soldi veri)</option>
+          <option value="freebet-snr">Free bet — Stake Not Returned (comune)</option>
+          <option value="freebet-sr">Free bet — Stake Returned</option>
+        </select>
+
+        <div class="row">
+          <div>
+            <label>Puntata Back (stake, €)</label>
+            <input type="number" id="backStake" value="20" step="0.01" min="0">
+          </div>
+          <div>
+            <label>Quota Back</label>
+            <input type="number" id="backOdds" value="3.5" step="0.01" min="1.01">
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Quota Lay (exchange)</label>
+            <input type="number" id="layOdds" value="3.6" step="0.01" min="1.01">
+          </div>
+          <div>
+            <label>Commissione exchange (%)</label>
+            <input type="number" id="commission" value="2" step="0.1" min="0">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="primary" onclick="runCalc()">Calcola</button>
+          <button class="ghost" onclick="sendCalcToTracker()">➕ Aggiungi al tracker</button>
+        </div>
+
+        <div class="result-box" id="calcResult"></div>
+      </div>
+
+      <div class="card">
+        <h2>Come funziona</h2>
+        <p style="color:var(--muted); font-size:13.5px; line-height:1.6;">
+          Il <b>matched betting</b> consente di estrarre valore dai bonus dei bookmaker piazzando una puntata
+          "back" sul bookmaker e coprendo lo stesso esito con una puntata "lay" su un exchange, azzerando
+          (o quasi) il rischio.
+        </p>
+        <h3>Qualifying bet</h3>
+        <p style="color:var(--muted); font-size:13px;">Puntata con soldi veri richiesta per sbloccare il bonus. Piccola perdita attesa pari al costo di copertura (di solito 1-3% dello stake).</p>
+        <h3>Free bet Stake Not Returned</h3>
+        <p style="color:var(--muted); font-size:13px;">Il bookmaker non restituisce lo stake se vinci: la lay stake ottimale è più bassa dello stake back per massimizzare l'estrazione di valore (~70-80%).</p>
+        <h3>Free bet Stake Returned</h3>
+        <p style="color:var(--muted); font-size:13px;">Lo stake viene restituito in caso di vincita: si calcola come una qualifying bet.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🎯 Punta/Punta (arbitraggio) a 2 o 3 esiti</h2>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6; margin-top:0;">
+        Copre tutti gli esiti di uno stesso mercato (es. 1-X-2, oppure i due lati di un mercato a 2 vie)
+        con puntate reali su bookmaker diversi, usando le quote migliori disponibili. Se la somma delle
+        probabilità implicite (1/quota) è sotto il 100%, il profitto è garantito qualunque sia il risultato —
+        anche senza bonus o exchange di mezzo.
+      </p>
+      <label>Numero di esiti</label>
+      <select id="arbOutcomes" onchange="toggleArbThirdOutcome()">
+        <option value="2">2 esiti (es. Tennis, mercati a 2 vie)</option>
+        <option value="3">3 esiti (es. 1-X-2 calcio)</option>
+      </select>
+      <div class="row">
+        <div>
+          <label>Stake totale da distribuire (€)</label>
+          <input type="number" id="arbStake" value="100" step="0.01" min="0">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Bookmaker esito 1</label>
+          <input type="text" id="arbBook1" placeholder="es. Sisal">
+        </div>
+        <div>
+          <label>Quota esito 1</label>
+          <input type="number" id="arbOdds1" value="2.10" step="0.01" min="1.01">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Bookmaker esito 2</label>
+          <input type="text" id="arbBook2" placeholder="es. Snai">
+        </div>
+        <div>
+          <label>Quota esito 2</label>
+          <input type="number" id="arbOdds2" value="4.20" step="0.01" min="1.01">
+        </div>
+      </div>
+      <div class="row" id="arbRow3">
+        <div>
+          <label>Bookmaker esito 3</label>
+          <input type="text" id="arbBook3" placeholder="es. Goldbet">
+        </div>
+        <div>
+          <label>Quota esito 3</label>
+          <input type="number" id="arbOdds3" value="4.00" step="0.01" min="1.01">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="primary" onclick="runArbCalc()">Calcola</button>
+        <button class="ghost" onclick="sendArbToTracker()">➕ Aggiungi al tracker</button>
+      </div>
+      <div class="result-box" id="arbResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>🎁 Freebet a 2 o 3 esiti (copertura diretta su altri bookmaker)</h2>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6; margin-top:0;">
+        Generalizza il back/lay a mercati con più di 2 esiti (es. 1-X-2): invece di coprire la free bet su
+        un exchange, la copri con puntate reali sugli altri esiti dello stesso mercato presso altri
+        bookmaker. Utile quando l'exchange non copre quel mercato o offre quote peggiori.
+      </p>
+      <label>Numero di esiti</label>
+      <select id="fbOutcomes" onchange="toggleFbThirdOutcome()">
+        <option value="2">2 esiti</option>
+        <option value="3">3 esiti</option>
+      </select>
+      <label>Tipo di free bet</label>
+      <select id="fbType">
+        <option value="snr">Stake Not Returned (comune)</option>
+        <option value="sr">Stake Returned</option>
+      </select>
+      <div class="row">
+        <div>
+          <label>Bookmaker free bet (esito 1)</label>
+          <input type="text" id="fbBook1" placeholder="es. Bet365">
+        </div>
+        <div>
+          <label>Valore free bet (€)</label>
+          <input type="number" id="fbValue" value="20" step="0.01" min="0">
+        </div>
+        <div>
+          <label>Quota esito 1 (free bet)</label>
+          <input type="number" id="fbOdds1" value="3.00" step="0.01" min="1.01">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Bookmaker esito 2 (copertura reale)</label>
+          <input type="text" id="fbBook2" placeholder="es. Sisal">
+        </div>
+        <div>
+          <label>Quota esito 2</label>
+          <input type="number" id="fbOdds2" value="1.80" step="0.01" min="1.01">
+        </div>
+      </div>
+      <div class="row" id="fbRow3">
+        <div>
+          <label>Bookmaker esito 3 (copertura reale)</label>
+          <input type="text" id="fbBook3" placeholder="es. Snai">
+        </div>
+        <div>
+          <label>Quota esito 3</label>
+          <input type="number" id="fbOdds3" value="5.00" step="0.01" min="1.01">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="primary" onclick="runFbCalc()">Calcola</button>
+        <button class="ghost" onclick="sendFbToTracker()">➕ Aggiungi al tracker</button>
+      </div>
+      <div class="result-box" id="fbResult"></div>
+      <p style="color:var(--muted); font-size:12px; margin:10px 0 0;">
+        Stake Not Returned: se vince l'esito 1 incassi solo la vincita (quota-1)×valore, lo stake non torna.
+        Stake Returned: trattata come una puntata reale a tutti gli effetti (stesso criterio usato nel
+        calcolatore Back/Lay qui sopra) — estrae meno valore della SNR perché va coperto anche il rimborso
+        dello stake.
+      </p>
+    </div>
+  </div>
+
+  <!-- ===================== TRACKER ===================== -->
+  <div class="tabpage" id="tab-tracker">
+    <div class="summary-grid" id="trackerSummary"></div>
+
+    <div class="card">
+      <h2>Aggiungi scommessa</h2>
+      <div class="row">
+        <div>
+          <label>Data</label>
+          <input type="date" id="betDate">
+        </div>
+        <div>
+          <label>Bookmaker / Exchange</label>
+          <input type="text" id="betBook" placeholder="es. Bet365">
+        </div>
+        <div>
+          <label>Tipo</label>
+          <select id="betType">
+            <option value="Qualifying">Qualifying</option>
+            <option value="Free bet SNR">Free bet SNR</option>
+            <option value="Free bet SR">Free bet SR</option>
+            <option value="Reload">Reload/Bonus</option>
+            <option value="Altro">Altro</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Stake (€)</label>
+          <input type="number" id="betStake" step="0.01" value="0">
+        </div>
+        <div>
+          <label>Profitto/Perdita netto (€)</label>
+          <input type="number" id="betProfit" step="0.01" value="0">
+        </div>
+        <div>
+          <label>Note</label>
+          <input type="text" id="betNote" placeholder="opzionale">
+        </div>
+      </div>
+      <button class="primary" onclick="addBet()">Aggiungi scommessa</button>
+    </div>
+
+    <div class="card">
+      <h2>Storico scommesse</h2>
+      <div class="table-wrap">
+        <table id="betsTable">
+          <thead>
+            <tr><th>Data</th><th>Bookmaker</th><th>Tipo</th><th>Stake</th><th>P/L</th><th>Note</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="empty" id="betsEmpty" style="display:none;">Nessuna scommessa registrata ancora.</div>
+    </div>
+  </div>
+
+  <!-- ===================== OFFERTE ===================== -->
+  <div class="tabpage" id="tab-offers">
+    <div class="card">
+      <h2>🔄 Importa promozioni rilevate automaticamente</h2>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6; margin-top:0;">
+        Esegui lo script <code>scraper_promozioni.py</code> (incluso nella cartella) sul tuo computer per
+        leggere automaticamente le promozioni dai siti dei bookmaker ADM. Genera un file
+        <code>promozioni.json</code> nella stessa cartella.
+      </p>
+      <div class="form-actions">
+        <button class="primary" onclick="refreshOffersAuto()">🔄 Aggiorna promozioni</button>
+        <button class="ghost" onclick="forgetPromoFile()" title="Scollega il file attuale per selezionarne un altro">Cambia file collegato</button>
+        <span id="autoImportStatus" style="font-size:13px; color:var(--muted);"></span>
+      </div>
+      <p id="autoImportLastUpdate" style="color:var(--muted); font-size:12px; margin:10px 0 0;"></p>
+      <p style="color:var(--muted); font-size:12px; margin:6px 0 0;">
+        Al primo click ti verrà chiesto di selezionare <code>promozioni.json</code> una volta sola: da quel
+        momento "Aggiorna" lo rilegge da solo, e l'app lo aggiorna automaticamente anche ogni volta che la
+        apri (senza bisogno di cliccare nulla). Funziona su Chrome/Edge; su altri browser usa
+        l'importazione manuale qui sotto.
+      </p>
+      <details style="margin-top:10px;">
+        <summary style="cursor:pointer; color:var(--muted); font-size:13px;">Importazione manuale (file singolo, per browser non supportati)</summary>
+        <input type="file" id="importFile" accept="application/json" style="margin-top:10px;">
+        <div class="form-actions">
+          <button onclick="importOffersFile()">Importa file</button>
+          <span id="importStatus" style="font-size:13px; color:var(--muted);"></span>
+        </div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>Nuova offerta / promozione</h2>
+      <div class="row">
+        <div>
+          <label>Bookmaker</label>
+          <input type="text" id="offBook" placeholder="es. Betfair">
+        </div>
+        <div>
+          <label>Titolo offerta</label>
+          <input type="text" id="offTitle" placeholder="es. Bet 10 Get 30">
+        </div>
+        <div>
+          <label>Valore stimato (€)</label>
+          <input type="number" id="offValue" step="0.01" value="0">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Scadenza</label>
+          <input type="date" id="offDeadline">
+        </div>
+        <div>
+          <label>Requisito di puntata (wagering)</label>
+          <input type="text" id="offWager" placeholder="es. 1x entro 7 giorni">
+        </div>
+        <div>
+          <label>Stato</label>
+          <select id="offStatus">
+            <option value="Da iniziare">Da iniziare</option>
+            <option value="In corso">In corso</option>
+            <option value="Completata">Completata</option>
+            <option value="Scaduta">Scaduta</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Immagine (URL, opzionale)</label>
+          <input type="text" id="offImage" placeholder="es. https://.../banner-promo.jpg">
+        </div>
+        <div>
+          <label>Link alla promo sul bookmaker (opzionale)</label>
+          <input type="text" id="offUrl" placeholder="es. https://www.sisal.it/scommesse/promozioni">
+        </div>
+      </div>
+      <label>Note</label>
+      <input type="text" id="offNote" placeholder="opzionale">
+      <button class="primary" onclick="addOffer()">Aggiungi offerta</button>
+    </div>
+
+    <div class="card">
+      <h2>Offerte attive</h2>
+      <div class="table-wrap">
+        <table id="offersTable">
+          <thead>
+            <tr><th></th><th>Bookmaker</th><th>Offerta</th><th>Valore</th><th>Scadenza</th><th>Wagering</th><th>Stato</th><th>Note</th><th></th><th>T&amp;C</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="empty" id="offersEmpty" style="display:none;">Nessuna offerta salvata ancora.</div>
+    </div>
+  </div>
+
+  <!-- ===================== ACCOUNT ===================== -->
+  <div class="tabpage" id="tab-accounts">
+    <div class="card">
+      <h2>Nuovo account</h2>
+      <div class="row">
+        <div>
+          <label>Bookmaker / Exchange</label>
+          <input type="text" id="accBook" placeholder="es. William Hill">
+        </div>
+        <div>
+          <label>Tipo</label>
+          <select id="accType">
+            <option value="Bookmaker">Bookmaker</option>
+            <option value="Exchange">Exchange</option>
+          </select>
+        </div>
+        <div>
+          <label>Saldo attuale (€)</label>
+          <input type="number" id="accBalance" step="0.01" value="0">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Stato verifica (KYC)</label>
+          <select id="accKyc">
+            <option value="Verificato">Verificato</option>
+            <option value="In attesa">In attesa</option>
+            <option value="Non verificato">Non verificato</option>
+          </select>
+        </div>
+        <div>
+          <label>Rischio limitazione (gubbing)</label>
+          <select id="accRisk">
+            <option value="Basso">Basso</option>
+            <option value="Medio">Medio</option>
+            <option value="Alto">Alto</option>
+          </select>
+        </div>
+        <div>
+          <label>Note</label>
+          <input type="text" id="accNote" placeholder="opzionale">
+        </div>
+      </div>
+      <button class="primary" onclick="addAccount()">Aggiungi account</button>
+    </div>
+
+    <div class="card">
+      <h2>I miei account</h2>
+      <div class="table-wrap">
+        <table id="accountsTable">
+          <thead>
+            <tr><th>Bookmaker</th><th>Tipo</th><th>Saldo</th><th>KYC</th><th>Rischio</th><th>Note</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="empty" id="accountsEmpty" style="display:none;">Nessun account salvato ancora.</div>
+    </div>
+  </div>
+
+  <!-- ===================== STRATEGIA SLOT ===================== -->
+  <div class="tabpage" id="tab-slotstrategy">
+    <div class="card">
+      <h2>Strategia Target → Rollover sui fun bonus</h2>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6; margin-top:0;">
+        Due fasi: <b>Target</b> — punti a costruire un saldo sufficiente a coprire la perdita attesa
+        del rollover, su slot RTP alto e volatilità medio-alta. <b>Rollover</b> — una volta raggiunto
+        il target, giochi sempre alla puntata minima su slot RTP alto e volatilità medio-bassa, per
+        completare il requisito con la minor varianza possibile.
+      </p>
+
+      <label>Collega a una promozione salvata (opzionale)</label>
+      <select id="stratOfferSelect" onchange="applyStratOffer()">
+        <option value="">— nessuna, inserisco i dati a mano —</option>
+      </select>
+
+      <div class="row">
+        <div>
+          <label>Fun bonus ricevuto (€)</label>
+          <input type="number" id="stratFunbonus" step="0.01" value="50">
+        </div>
+        <div>
+          <label>Requisito di puntata (wagering, es. 20 = 20x)</label>
+          <input type="number" id="stratWagering" step="1" value="20">
+        </div>
+        <div>
+          <label>Max cap convertibile in reale (€)</label>
+          <input type="number" id="stratMaxCap" step="0.01" value="0">
+        </div>
+      </div>
+
+      <label>Slot per la fase Target (RTP alto, volatilità medio-alta)</label>
+      <select id="stratSlotSelect" onchange="applyStratSlot()">
+        <option value="">— nessuna slot rilevata, inserisco l'RTP a mano —</option>
+      </select>
+
+      <div class="row">
+        <div>
+          <label>RTP slot fase Target (%)</label>
+          <input type="number" id="stratRTP" step="0.01" value="96.5">
+        </div>
+      </div>
+
+      <button class="primary" onclick="runStrategy()">Calcola strategia</button>
+
+      <div class="result-box" id="stratResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>Come leggere i risultati</h2>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6;">
+        Il <b>Target</b> è il saldo a cui puntare prima di passare al rollover a basso rischio:
+        stima la perdita attesa sull'intero volume di puntata richiesto (fun bonus × wagering ×
+        (1 − RTP)) e ci somma il massimo importo convertibile in denaro reale.
+      </p>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6;">
+        La <b>puntata in fase Target</b> è fun bonus ÷ 20, così da avere circa 20 giri per provare a
+        raggiungere il target su una slot a volatilità più alta.
+      </p>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6;">
+        In <b>fase Rollover</b>, una volta raggiunto (o avvicinato) il target, punta sempre al minimo
+        consentito dalla slot scelta (RTP alto, volatilità medio-bassa), per completare il resto del
+        requisito con la minor varianza possibile.
+      </p>
+      <p style="color:var(--warn); font-size:12.5px; line-height:1.6; margin-bottom:0;">
+        Attenzione: è una stima probabilistica basata sull'RTP dichiarato, non una garanzia. La
+        varianza reale (soprattutto in fase Target) può portare a risultati molto diversi dalla
+        media. Verifica sempre che il bookmaker consenta questo tipo di gioco nei termini della
+        promozione.
+      </p>
+    </div>
+  </div>
+
+  <!-- ===================== PROFILO & PIANO ===================== -->
+  <div class="tabpage" id="tab-profile">
+    <div class="card">
+      <h2>Il tuo profilo</h2>
+      <div class="row">
+        <div>
+          <label>Esperienza</label>
+          <select id="profExperience">
+            <option value="bassa">Bassa</option>
+            <option value="media" selected>Media</option>
+            <option value="alta">Alta</option>
+          </select>
+        </div>
+        <div>
+          <label>Budget disponibile (€)</label>
+          <input type="number" id="profBudget" step="10" value="300">
+        </div>
+        <div>
+          <label>Tempo da dedicare (ore/settimana)</label>
+          <input type="number" id="profTime" step="0.5" value="5">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Propensione al rischio</label>
+          <select id="profRisk">
+            <option value="bassa">Bassa</option>
+            <option value="media" selected>Media</option>
+            <option value="alta">Alta</option>
+          </select>
+        </div>
+        <div>
+          <label>Guadagno mensile desiderato (€)</label>
+          <input type="number" id="profGoal" step="10" value="150">
+        </div>
+        <div></div>
+      </div>
+
+      <h3 style="cursor:pointer;" onclick="toggleAssumptions()">⚙️ Ipotesi di mercato (modificabili) <span id="assumptionsToggle">▾</span></h3>
+      <div id="assumptionsBox" style="display:none;">
+        <div class="row">
+          <div>
+            <label>Profitto medio per offerta matched betting (€)</label>
+            <input type="number" id="assumMbProfit" step="0.5" value="8">
+          </div>
+          <div>
+            <label>Profitto medio per offerta slot bonus hunting (€)</label>
+            <input type="number" id="assumSlotProfit" step="0.5" value="12">
+          </div>
+          <div>
+            <label>Offerte disponibili sul mercato (max/settimana)</label>
+            <input type="number" id="assumMarketCap" step="1" value="15">
+          </div>
+        </div>
+        <p class="field-hint">Sono stime di partenza modificabili: dipendono molto dal numero di
+          bookmaker ADM che usi, da quante offerte reload/ricorrenti trovi e da quanto durano prima
+          di esaurirsi. Aggiustale in base alla tua esperienza reale per un piano più preciso.</p>
+      </div>
+
+      <button class="primary" onclick="runProfilePlan()">Calcola il mio piano</button>
+
+      <div class="result-box" id="profileResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>Scaletta operativa personalizzata</h2>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6; margin-top:0;">
+        Incrocia il piano qui sopra con le offerte salvate nel tab Offerte: seleziona quelle che
+        rientrano nel tuo budget e non sono scadute, le ordina per priorità (scadenza più vicina
+        prima) e le distribuisce secondo lo split matched betting / slot bonus hunting, fino alla
+        tua capacità settimanale.
+      </p>
+      <div class="table-wrap">
+        <table id="scheduleTable">
+          <thead>
+            <tr><th>#</th><th>Tipo</th><th>Bookmaker</th><th>Offerta</th><th>Valore</th><th>Scadenza</th><th>Stake consigliato</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="empty" id="scheduleEmpty" style="display:none;">Calcola prima il piano qui sopra: la scaletta userà i suoi parametri.</div>
+      <p id="scheduleNote" style="color:var(--muted); font-size:12.5px; margin-top:10px;"></p>
+    </div>
+
+    <div class="card">
+      <h2>Come viene calcolato il piano</h2>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6;">
+        Lo split tra <b>matched betting classico</b> (a basso rischio) e <b>slot bonus hunting</b>
+        (varianza più alta, vedi tab Strategia Slot) dipende dalla combinazione di rischio ed
+        esperienza che indichi: più rischio ed esperienza, più peso alla componente slot.
+      </p>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6;">
+        La puntata/esposizione massima consigliata per singola operazione è una percentuale del
+        budget (più bassa se il rischio è basso), per restare diversificato su più bookmaker invece
+        di concentrare tutto su uno solo.
+      </p>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6;">
+        La capacità settimanale è il minimo tra "ore disponibili ÷ tempo medio per offerta" e il
+        tetto di offerte realisticamente disponibili sul mercato (le promozioni non sono infinite:
+        aumentare solo le ore non aumenta all'infinito il numero di offerte da lavorare).
+      </p>
+      <p style="color:var(--warn); font-size:12.5px; line-height:1.6; margin-bottom:0;">
+        È una stima con ipotesi dichiarate ed editabili, non una previsione garantita: il mercato
+        reale delle promozioni varia nel tempo e alcuni bookmaker limitano gli account più attivi.
+      </p>
+    </div>
+  </div>
+
+  <!-- ===================== BACKUP & TRASFERIMENTO ===================== -->
+  <div class="tabpage" id="tab-backup">
+    <div class="card">
+      <h2>💾 Backup & trasferimento su un altro PC</h2>
+      <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin-top:0;">
+        Questa app salva tutto (scommesse, offerte, account, profilo) nella memoria del browser
+        <b>di questo PC</b> — non dentro al file HTML. Se apri lo stesso file su un altro
+        computer, parte vuoto: per portare i tuoi dati devi esportarli qui e importarli sull'altro PC.
+      </p>
+
+      <h3>1. Su questo PC: esporta</h3>
+      <button class="primary" onclick="exportBackup()">⬇️ Esporta tutti i dati (backup.json)</button>
+      <p class="field-hint">Scarica un file <code>matchbetting_backup.json</code> con scommesse,
+        offerte, account e profilo. Copialo insieme al file <code>MatchBetting_Assistant.html</code>
+        (e agli script dello scraper, se li usi) su una chiavetta USB, cloud o email.</p>
+
+      <h3 style="margin-top:24px;">2. Sull'altro PC: importa</h3>
+      <input type="file" id="backupFile" accept="application/json" style="margin-top:6px;">
+      <div class="form-actions">
+        <button class="primary" onclick="importBackup('merge')">Unisci ai dati esistenti</button>
+        <button class="ghost" onclick="importBackup('replace')">Sostituisci tutto</button>
+      </div>
+      <span id="backupStatus" style="font-size:13px; color:var(--muted); display:block; margin-top:8px;"></span>
+      <p class="field-hint">"Unisci" aggiunge i dati importati a quelli già presenti (evitando
+        duplicati per id). "Sostituisci tutto" cancella prima i dati locali e li rimpiazza con
+        quelli del backup — usalo su un PC nuovo o vuoto.</p>
+    </div>
+
+    <div class="card">
+      <h2>Checklist trasferimento rapido</h2>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6;">
+        1) Qui: clicca "Esporta tutti i dati".<br>
+        2) Copia sia <code>MatchBetting_Assistant.html</code> sia il file
+        <code>matchbetting_backup.json</code> appena scaricato (stessa chiavetta/cloud).<br>
+        3) Se usi lo scraper: copia anche <code>scraper_promozioni.py</code>,
+        <code>scraper_config.json</code> e i file <code>.bat</code>/<code>.xml</code>.<br>
+        4) Sull'altro PC: apri <code>MatchBetting_Assistant.html</code> nel browser, vai su questo
+        tab e importa il file <code>matchbetting_backup.json</code>.
+      </p>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ---------- Navigazione tab ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tabpage').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ---------- Storage helpers ---------- */
+const STORE_KEYS = {bets:'mba_bets', offers:'mba_offers', accounts:'mba_accounts'};
+function load(key){ try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; } }
+function save(key, data){ localStorage.setItem(key, JSON.stringify(data)); }
+
+let bets = load(STORE_KEYS.bets);
+let offers = load(STORE_KEYS.offers);
+let accounts = load(STORE_KEYS.accounts);
+
+const fmt = n => (Math.round(n*100)/100).toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:2});
+const euro = n => (n>=0?'+':'') + '€' + fmt(n);
+
+/* ===================== CALCOLATORE ===================== */
+let lastCalc = null;
+
+function runCalc(){
+  const type = document.getElementById('calcType').value;
+  const backStake = parseFloat(document.getElementById('backStake').value) || 0;
+  const backOdds = parseFloat(document.getElementById('backOdds').value) || 0;
+  const layOdds = parseFloat(document.getElementById('layOdds').value) || 0;
+  const commission = (parseFloat(document.getElementById('commission').value) || 0) / 100;
+
+  if(backOdds <= 1 || layOdds <= 1){
+    document.getElementById('calcResult').innerHTML = '<div class="empty">Inserisci quote valide (> 1.00).</div>';
+    return;
+  }
+
+  let layStake, liability, profitIfWins, profitIfLoses, freeBetValue = 0;
+
+  if(type === 'qualifying' || type === 'freebet-sr'){
+    // Standard matched bet: lay stake to equalize outcomes
+    layStake = (backStake * backOdds) / (layOdds - commission);
+    liability = layStake * (layOdds - 1);
+    profitIfWins = (backStake * (backOdds - 1)) - liability;
+    profitIfLoses = layStake * (1 - commission) - backStake;
+  } else {
+    // Free bet SNR: optimal lay stake to extract max value (stake not returned)
+    freeBetValue = backStake;
+    layStake = (backStake * (backOdds - 1)) / (layOdds - commission);
+    liability = layStake * (layOdds - 1);
+    profitIfWins = (backStake * (backOdds - 1)) - liability;
+    profitIfLoses = layStake * (1 - commission);
+  }
+
+  const guaranteed = Math.min(profitIfWins, profitIfLoses);
+  const extractionRate = freeBetValue > 0 ? (guaranteed / freeBetValue) * 100 : null;
+
+  lastCalc = {type, backStake, backOdds, layOdds, commission, layStake, liability, profitIfWins, profitIfLoses, guaranteed};
+
+  const cls = guaranteed >= 0 ? 'good' : 'bad';
+  document.getElementById('calcResult').innerHTML = `
+    <div class="result-row"><span class="label">Puntata Lay consigliata</span><span class="val">€${fmt(layStake)}</span></div>
+    <div class="result-row"><span class="label">Liability (esposizione)</span><span class="val">€${fmt(liability)}</span></div>
+    <div class="result-row"><span class="label">Se vince il Back</span><span class="val">${euro(profitIfWins)}</span></div>
+    <div class="result-row"><span class="label">Se vince il Lay</span><span class="val">${euro(profitIfLoses)}</span></div>
+    <div class="result-row"><span class="label">Risultato garantito</span><span class="val ${cls}">${euro(guaranteed)}</span></div>
+    ${extractionRate!==null ? `<div class="result-row"><span class="label">Tasso di estrazione del bonus</span><span class="val ${extractionRate>=60?'good':'bad'}">${fmt(extractionRate)}%</span></div>` : ''}
+  `;
+}
+
+function sendCalcToTracker(){
+  if(!lastCalc){ runCalc(); if(!lastCalc) return; }
+  document.getElementById('betStake').value = lastCalc.backStake;
+  document.getElementById('betProfit').value = fmt(lastCalc.guaranteed);
+  document.getElementById('betType').value =
+    lastCalc.type === 'qualifying' ? 'Qualifying' :
+    lastCalc.type === 'freebet-snr' ? 'Free bet SNR' : 'Free bet SR';
+  document.getElementById('betDate').value = new Date().toISOString().slice(0,10);
+  document.querySelector('.tab-btn[data-tab="tracker"]').click();
+}
+
+runCalc();
+
+/* ===================== PUNTA/PUNTA (ARBITRAGGIO) N ESITI ===================== */
+function toggleArbThirdOutcome(){
+  const n = parseInt(document.getElementById('arbOutcomes').value, 10);
+  document.getElementById('arbRow3').style.display = n === 3 ? 'flex' : 'none';
+}
+
+let lastArb = null;
+
+function runArbCalc(){
+  const n = parseInt(document.getElementById('arbOutcomes').value, 10);
+  const stakeTot = parseFloat(document.getElementById('arbStake').value) || 0;
+  const odds = [
+    parseFloat(document.getElementById('arbOdds1').value) || 0,
+    parseFloat(document.getElementById('arbOdds2').value) || 0,
+  ];
+  const books = [
+    document.getElementById('arbBook1').value.trim() || 'Esito 1',
+    document.getElementById('arbBook2').value.trim() || 'Esito 2',
+  ];
+  if(n === 3){
+    odds.push(parseFloat(document.getElementById('arbOdds3').value) || 0);
+    books.push(document.getElementById('arbBook3').value.trim() || 'Esito 3');
+  }
+
+  if(odds.some(o => o <= 1) || stakeTot <= 0){
+    document.getElementById('arbResult').innerHTML = '<div class="empty">Inserisci uno stake e quote validi (> 1.00) per tutti gli esiti.</div>';
+    return;
+  }
+
+  // Somma delle probabilita' implicite: se < 100% c'e' arbitraggio (profitto
+  // garantito qualunque esito vinca). Lo stake su ciascun esito e' proporzionale
+  // all'inverso della sua quota, cosi' il payout e' identico in ogni caso.
+  const impliedSum = odds.reduce((s,o) => s + 1/o, 0);
+  const stakes = odds.map(o => stakeTot * (1/o) / impliedSum);
+  const payout = stakeTot / impliedSum; // uguale per qualunque esito vinca
+  const profit = payout - stakeTot;
+  const roiPct = (1/impliedSum - 1) * 100;
+
+  lastArb = {n, stakeTot, odds, books, stakes, payout, profit, roiPct};
+
+  const cls = profit >= 0 ? 'good' : 'bad';
+  const rows = stakes.map((s,i) => `<div class="result-row"><span class="label">Puntata su ${books[i]} (quota ${fmt(odds[i])})</span><span class="val">€${fmt(s)}</span></div>`).join('');
+  document.getElementById('arbResult').innerHTML = `
+    ${rows}
+    <div class="result-row"><span class="label">Somma probabilità implicite</span><span class="val ${impliedSum < 1 ? 'good' : 'bad'}">${fmt(impliedSum*100)}%</span></div>
+    <div class="result-row"><span class="label">Payout garantito (qualunque esito)</span><span class="val">€${fmt(payout)}</span></div>
+    <div class="result-row"><span class="label">Profitto garantito</span><span class="val ${cls}">${euro(profit)}</span></div>
+    <div class="result-row"><span class="label">ROI sullo stake totale</span><span class="val ${cls}">${fmt(roiPct)}%</span></div>
+    ${impliedSum >= 1 ? '<div class="result-row"><span class="label"></span><span class="val bad">Nessun arbitraggio: la somma delle probabilità implicite è ≥ 100%, non c\'è profitto garantito con queste quote.</span></div>' : ''}
+  `;
+}
+
+function sendArbToTracker(){
+  if(!lastArb){ runArbCalc(); if(!lastArb) return; }
+  document.getElementById('betStake').value = fmt(lastArb.stakeTot);
+  document.getElementById('betProfit').value = fmt(lastArb.profit);
+  document.getElementById('betType').value = 'Altro';
+  document.getElementById('betBook').value = lastArb.books.join(' / ');
+  document.getElementById('betNote').value = `Punta/Punta ${lastArb.n} esiti: ${lastArb.books.map((b,i)=>`${b}@${fmt(lastArb.odds[i])}`).join(', ')}`;
+  document.getElementById('betDate').value = new Date().toISOString().slice(0,10);
+  document.querySelector('.tab-btn[data-tab="tracker"]').click();
+}
+
+runArbCalc();
+
+/* ===================== FREEBET A N ESITI (copertura diretta) ===================== */
+function toggleFbThirdOutcome(){
+  const n = parseInt(document.getElementById('fbOutcomes').value, 10);
+  document.getElementById('fbRow3').style.display = n === 3 ? 'flex' : 'none';
+}
+
+let lastFb = null;
+
+function runFbCalc(){
+  const n = parseInt(document.getElementById('fbOutcomes').value, 10);
+  const type = document.getElementById('fbType').value; // 'snr' | 'sr'
+  const freeBetValue = parseFloat(document.getElementById('fbValue').value) || 0;
+  const o1 = parseFloat(document.getElementById('fbOdds1').value) || 0;
+  const book1 = document.getElementById('fbBook1').value.trim() || 'Esito 1 (free bet)';
+
+  const coverOdds = [parseFloat(document.getElementById('fbOdds2').value) || 0];
+  const coverBooks = [document.getElementById('fbBook2').value.trim() || 'Esito 2'];
+  if(n === 3){
+    coverOdds.push(parseFloat(document.getElementById('fbOdds3').value) || 0);
+    coverBooks.push(document.getElementById('fbBook3').value.trim() || 'Esito 3');
+  }
+
+  if(o1 <= 1 || coverOdds.some(o => o <= 1) || freeBetValue <= 0){
+    document.getElementById('fbResult').innerHTML = '<div class="empty">Inserisci un valore di free bet e quote validi (> 1.00) per tutti gli esiti.</div>';
+    return;
+  }
+
+  // Q = somma di 1/quota sugli esiti di copertura reale (tutti tranne la free bet).
+  // SNR: la free bet paga solo la vincita (quota1-1)*valore se vince, nulla se perde.
+  //   copertura_i = (quota1-1)*valore / quota_i ; profitto = (quota1-1)*valore*(1-Q)
+  // SR: trattata come una puntata reale (stesso criterio del calcolatore Back/Lay
+  //   sopra per "qualifying"/SR): paga l'intero quota1*valore se vince, e la sua
+  //   perdita "costa" comunque il valore nominale se perde.
+  //   copertura_i = quota1*valore / quota_i ; profitto = valore*[(quota1-1) - Q*quota1]
+  const Q = coverOdds.reduce((s,o) => s + 1/o, 0);
+  let coverStakes, profit;
+  if(type === 'sr'){
+    coverStakes = coverOdds.map(o => (freeBetValue * o1) / o);
+    profit = freeBetValue * ((o1 - 1) - Q * o1);
+  } else {
+    coverStakes = coverOdds.map(o => (freeBetValue * (o1 - 1)) / o);
+    profit = freeBetValue * (o1 - 1) * (1 - Q);
+  }
+  const totalCoverStake = coverStakes.reduce((a,b)=>a+b, 0);
+  const extractionRate = freeBetValue > 0 ? (profit / freeBetValue) * 100 : null;
+
+  lastFb = {n, type, freeBetValue, o1, book1, coverOdds, coverBooks, coverStakes, profit, totalCoverStake};
+
+  const cls = profit >= 0 ? 'good' : 'bad';
+  const rows = coverStakes.map((s,i) => `<div class="result-row"><span class="label">Copertura su ${coverBooks[i]} (quota ${fmt(coverOdds[i])})</span><span class="val">€${fmt(s)}</span></div>`).join('');
+  document.getElementById('fbResult').innerHTML = `
+    <div class="result-row"><span class="label">Free bet su ${book1} (quota ${fmt(o1)})</span><span class="val">€${fmt(freeBetValue)} (${type==='sr'?'SR':'SNR'})</span></div>
+    ${rows}
+    <div class="result-row"><span class="label">Stake reale totale da coprire</span><span class="val">€${fmt(totalCoverStake)}</span></div>
+    <div class="result-row"><span class="label">Risultato garantito (qualunque esito)</span><span class="val ${cls}">${euro(profit)}</span></div>
+    ${extractionRate!==null ? `<div class="result-row"><span class="label">Tasso di estrazione della free bet</span><span class="val ${extractionRate>=60?'good':'bad'}">${fmt(extractionRate)}%</span></div>` : ''}
+  `;
+}
+
+function sendFbToTracker(){
+  if(!lastFb){ runFbCalc(); if(!lastFb) return; }
+  document.getElementById('betStake').value = fmt(lastFb.freeBetValue);
+  document.getElementById('betProfit').value = fmt(lastFb.profit);
+  document.getElementById('betType').value = lastFb.type === 'sr' ? 'Free bet SR' : 'Free bet SNR';
+  document.getElementById('betBook').value = lastFb.book1;
+  document.getElementById('betNote').value = `Freebet ${lastFb.n} esiti, copertura: ${lastFb.coverBooks.map((b,i)=>`${b}@${fmt(lastFb.coverOdds[i])}`).join(', ')}`;
+  document.getElementById('betDate').value = new Date().toISOString().slice(0,10);
+  document.querySelector('.tab-btn[data-tab="tracker"]').click();
+}
+
+runFbCalc();
+
+/* ===================== TRACKER ===================== */
+function addBet(){
+  const date = document.getElementById('betDate').value || new Date().toISOString().slice(0,10);
+  const book = document.getElementById('betBook').value.trim();
+  if(!book){ alert('Inserisci il nome del bookmaker.'); return; }
+  const type = document.getElementById('betType').value;
+  const stake = parseFloat(document.getElementById('betStake').value) || 0;
+  const profit = parseFloat(document.getElementById('betProfit').value) || 0;
+  const note = document.getElementById('betNote').value.trim();
+
+  bets.push({id:Date.now(), date, book, type, stake, profit, note});
+  save(STORE_KEYS.bets, bets);
+  document.getElementById('betBook').value='';
+  document.getElementById('betNote').value='';
+  document.getElementById('betStake').value=0;
+  document.getElementById('betProfit').value=0;
+  renderBets();
+}
+
+function deleteBet(id){
+  bets = bets.filter(b=>b.id!==id);
+  save(STORE_KEYS.bets, bets);
+  renderBets();
+}
+
+function renderBets(){
+  const tbody = document.querySelector('#betsTable tbody');
+  tbody.innerHTML = '';
+  document.getElementById('betsEmpty').style.display = bets.length ? 'none' : 'block';
+
+  [...bets].sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(b=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${b.date}</td>
+      <td>${b.book}</td>
+      <td><span class="badge-type">${b.type}</span></td>
+      <td>€${fmt(b.stake)}</td>
+      <td style="color:${b.profit>=0?'var(--accent)':'var(--danger)'}; font-weight:700;">${euro(b.profit)}</td>
+      <td>${b.note||''}</td>
+      <td><button class="danger-link" onclick="deleteBet(${b.id})">Elimina</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Summary
+  const total = bets.reduce((s,b)=>s+b.profit,0);
+  const byBook = {};
+  bets.forEach(b=>{ byBook[b.book] = (byBook[b.book]||0) + b.profit; });
+  const bestBook = Object.entries(byBook).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById('trackerSummary').innerHTML = `
+    <div class="stat"><div class="num" style="color:${total>=0?'var(--accent)':'var(--danger)'}">${euro(total)}</div><div class="lbl">Profitto totale</div></div>
+    <div class="stat"><div class="num">${bets.length}</div><div class="lbl">Scommesse registrate</div></div>
+    <div class="stat"><div class="num">${Object.keys(byBook).length}</div><div class="lbl">Bookmaker usati</div></div>
+    <div class="stat"><div class="num" style="font-size:16px;">${bestBook ? bestBook[0] : '—'}</div><div class="lbl">Miglior bookmaker</div></div>
+  `;
+}
+renderBets();
+
+/* ===================== OFFERTE ===================== */
+
+// Unisce un array di promozioni (dallo scraper o da import manuale) nell'elenco
+// esistente: stessa coppia bookmaker+titolo già presente viene aggiornata, non
+// duplicata. Usata sia dall'import manuale sia dall'aggiornamento automatico.
+function mergeImportedOffers(data){
+  if(!Array.isArray(data)){
+    throw new Error('Formato inatteso: il file deve contenere un elenco di offerte.');
+  }
+  let added = 0, updated = 0;
+  data.forEach(item=>{
+    if(!item.book || !item.title) return;
+    const existing = offers.find(o => o.book === item.book && o.title === item.title);
+    const normalized = {
+      book: item.book,
+      title: item.title,
+      value: parseFloat(item.value) || 0,
+      deadline: item.deadline || '',
+      wager: item.wager || '',
+      status: item.status || 'Da iniziare',
+      note: item.note || '',
+      image: item.image || '',
+      url: item.url || '',
+      terms: item.terms || '',
+      slots: Array.isArray(item.slots) ? item.slots : []
+    };
+    if(existing){
+      // I T&C, una volta salvati, non vengono mai sovrascritti con una versione
+      // vuota da un import successivo (es. run dove il budget di arricchimento
+      // era esaurito): si aggiornano solo se il nuovo import ne porta di nuovi.
+      const keepTerms = normalized.terms || existing.terms || '';
+      Object.assign(existing, normalized, {id: existing.id, status: existing.status, terms: keepTerms});
+      updated++;
+    } else {
+      offers.push({id: Date.now() + Math.floor(Math.random()*10000), ...normalized});
+      added++;
+    }
+  });
+  save(STORE_KEYS.offers, offers);
+  renderOffers();
+  return {added, updated};
+}
+
+function importOffersFile(){
+  const input = document.getElementById('importFile');
+  const statusEl = document.getElementById('importStatus');
+  if(!input.files || !input.files[0]){
+    statusEl.textContent = 'Seleziona prima un file promozioni.json.';
+    statusEl.style.color = 'var(--danger)';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    let data;
+    try{
+      data = JSON.parse(e.target.result);
+    }catch(err){
+      statusEl.textContent = 'File non valido: non è un JSON leggibile.';
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
+    try{
+      const {added, updated} = mergeImportedOffers(data);
+      statusEl.textContent = `Importazione completata: ${added} nuove, ${updated} aggiornate.`;
+      statusEl.style.color = 'var(--accent)';
+      setLastPromoUpdate();
+    }catch(err){
+      statusEl.textContent = err.message;
+      statusEl.style.color = 'var(--danger)';
+    }
+  };
+  reader.readAsText(input.files[0]);
+}
+
+/* ---- Aggiornamento automatico da promozioni.json (File System Access API) ----
+   Al primo utilizzo l'utente seleziona una volta il file promozioni.json; il
+   "handle" ottenuto viene salvato in IndexedDB (i File System Access handle non
+   sono serializzabili in localStorage, ma lo sono in IndexedDB). Alle richieste
+   successive, se il permesso di lettura risulta ancora concesso dal browser, il
+   file viene riletto senza mostrare nessun dialogo: sia dal pulsante "Aggiorna"
+   sia in automatico all'apertura dell'app (silentAutoRefresh). Disponibile solo
+   su browser Chromium (Chrome/Edge); altrove resta l'importazione manuale. */
+const PROMO_HANDLE_DB = 'mba_handles_db';
+const PROMO_HANDLE_STORE = 'handles';
+const PROMO_HANDLE_KEY = 'promozioniFile';
+const LAST_PROMO_UPDATE_KEY = 'mba_last_promo_update';
+
+function idbOpen(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(PROMO_HANDLE_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(PROMO_HANDLE_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbGetHandle(){
+  try{
+    const db = await idbOpen();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(PROMO_HANDLE_STORE, 'readonly');
+      const req = tx.objectStore(PROMO_HANDLE_STORE).get(PROMO_HANDLE_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }catch(e){ return null; }
+}
+async function idbSetHandle(handle){
+  try{
+    const db = await idbOpen();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(PROMO_HANDLE_STORE, 'readwrite');
+      tx.objectStore(PROMO_HANDLE_STORE).put(handle, PROMO_HANDLE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }catch(e){ /* IndexedDB non disponibile: si ricadrà sull'import manuale */ }
+}
+async function idbClearHandle(){
+  try{
+    const db = await idbOpen();
+    const tx = db.transaction(PROMO_HANDLE_STORE, 'readwrite');
+    tx.objectStore(PROMO_HANDLE_STORE).delete(PROMO_HANDLE_KEY);
+  }catch(e){}
+}
+
+function setLastPromoUpdate(){
+  localStorage.setItem(LAST_PROMO_UPDATE_KEY, new Date().toISOString());
+  updateLastPromoLabel();
+}
+function updateLastPromoLabel(){
+  const el = document.getElementById('autoImportLastUpdate');
+  if(!el) return;
+  const iso = localStorage.getItem(LAST_PROMO_UPDATE_KEY);
+  if(!iso){ el.textContent = ''; return; }
+  const d = new Date(iso);
+  const data = d.toLocaleDateString('it-IT');
+  const ora = d.toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
+  el.textContent = `Ultimo aggiornamento: ${data} alle ${ora}`;
+}
+
+async function readAndMergeFromHandle(handle){
+  const file = await handle.getFile();
+  const text = await file.text();
+  let data;
+  try{ data = JSON.parse(text); }
+  catch(e){ throw new Error('promozioni.json non è un JSON leggibile.'); }
+  return mergeImportedOffers(data);
+}
+
+async function refreshOffersAuto(){
+  const statusEl = document.getElementById('autoImportStatus');
+  if(!('showOpenFilePicker' in window)){
+    statusEl.textContent = 'Il tuo browser non supporta l\'aggiornamento automatico: usa "Importazione manuale" qui sotto.';
+    statusEl.style.color = 'var(--danger)';
+    return;
+  }
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Aggiornamento in corso...';
+  try{
+    let handle = await idbGetHandle();
+    if(handle){
+      let perm = await handle.queryPermission({mode:'read'});
+      if(perm !== 'granted'){
+        perm = await handle.requestPermission({mode:'read'});
+      }
+      if(perm !== 'granted') handle = null;
+    }
+    if(!handle){
+      const picked = await window.showOpenFilePicker({
+        types: [{description:'JSON', accept:{'application/json':['.json']}}],
+        excludeAcceptAllOption: false
+      });
+      handle = picked[0];
+      await idbSetHandle(handle);
+    }
+    const {added, updated} = await readAndMergeFromHandle(handle);
+    setLastPromoUpdate();
+    statusEl.textContent = `Aggiornato: ${added} nuove, ${updated} aggiornate.`;
+    statusEl.style.color = 'var(--accent)';
+  }catch(err){
+    if(err.name === 'AbortError'){
+      statusEl.textContent = '';
+      return;
+    }
+    statusEl.textContent = 'Errore durante l\'aggiornamento: ' + err.message;
+    statusEl.style.color = 'var(--danger)';
+  }
+}
+
+async function forgetPromoFile(){
+  await idbClearHandle();
+  const statusEl = document.getElementById('autoImportStatus');
+  statusEl.textContent = 'File scollegato. Clicca "Aggiorna promozioni" per selezionarne uno nuovo.';
+  statusEl.style.color = 'var(--muted)';
+}
+
+// Eseguito all'apertura dell'app: se un file è già stato collegato in una
+// sessione precedente e il permesso di lettura è ancora valido, lo rilegge
+// senza chiedere nulla (requestPermission richiederebbe un click dell'utente,
+// quindi qui si usa solo queryPermission, che non lo richiede).
+async function silentAutoRefresh(){
+  updateLastPromoLabel();
+  if(!('indexedDB' in window) || !('showOpenFilePicker' in window)) return;
+  try{
+    const handle = await idbGetHandle();
+    if(!handle) return;
+    const perm = await handle.queryPermission({mode:'read'});
+    if(perm !== 'granted') return;
+    const {added, updated} = await readAndMergeFromHandle(handle);
+    setLastPromoUpdate();
+    const statusEl = document.getElementById('autoImportStatus');
+    if(statusEl && (added || updated)){
+      statusEl.textContent = `Aggiornato automaticamente all'apertura: ${added} nuove, ${updated} aggiornate.`;
+      statusEl.style.color = 'var(--accent)';
+    }
+  }catch(e){
+    // silenzioso: se qualcosa va storto (file spostato/rinominato, ecc.) l'utente
+    // se ne accorgerà comunque cliccando "Aggiorna promozioni" e vedrà l'errore.
+  }
+}
+
+function addOffer(){
+  const book = document.getElementById('offBook').value.trim();
+  const title = document.getElementById('offTitle').value.trim();
+  if(!book || !title){ alert('Inserisci bookmaker e titolo offerta.'); return; }
+  const value = parseFloat(document.getElementById('offValue').value) || 0;
+  const deadline = document.getElementById('offDeadline').value;
+  const wager = document.getElementById('offWager').value.trim();
+  const status = document.getElementById('offStatus').value;
+  const image = document.getElementById('offImage').value.trim();
+  const url = document.getElementById('offUrl').value.trim();
+  const note = document.getElementById('offNote').value.trim();
+
+  offers.push({id:Date.now(), book, title, value, deadline, wager, status, note, image, url});
+  save(STORE_KEYS.offers, offers);
+  ['offBook','offTitle','offWager','offNote','offImage','offUrl'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('offValue').value=0;
+  renderOffers();
+}
+
+function deleteOffer(id){
+  offers = offers.filter(o=>o.id!==id);
+  save(STORE_KEYS.offers, offers);
+  renderOffers();
+}
+
+function cycleStatus(id){
+  const order = ['Da iniziare','In corso','Completata','Scaduta'];
+  const o = offers.find(x=>x.id===id);
+  if(!o) return;
+  o.status = order[(order.indexOf(o.status)+1) % order.length];
+  save(STORE_KEYS.offers, offers);
+  renderOffers();
+}
+
+function statusPill(status){
+  const map = {'Da iniziare':'info', 'In corso':'warn', 'Completata':'ok', 'Scaduta':'danger'};
+  return `<span class="pill ${map[status]||'info'}" style="cursor:pointer" title="Clicca per cambiare stato">${status}</span>`;
+}
+
+function renderOffers(){
+  const tbody = document.querySelector('#offersTable tbody');
+  tbody.innerHTML = '';
+  document.getElementById('offersEmpty').style.display = offers.length ? 'none' : 'block';
+
+  [...offers].sort((a,b)=> (a.deadline||'9999').localeCompare(b.deadline||'9999')).forEach(o=>{
+    const tr = document.createElement('tr');
+    const thumb = o.image
+      ? `<img class="thumb" src="${o.image}" alt="" onerror="this.outerHTML='<div class=&quot;thumb-placeholder&quot;>🎁</div>'">`
+      : `<div class="thumb-placeholder">🎁</div>`;
+    const linkCell = o.url
+      ? `<a class="link-out" href="${o.url}" target="_blank" rel="noopener">Vedi ↗</a>`
+      : '';
+    const termsCell = o.terms
+      ? `<button class="link-out" onclick="toggleTerms(${o.id})">📄 T&amp;C</button>`
+      : '<span style="opacity:.4">—</span>';
+    tr.innerHTML = `
+      <td>${thumb}</td>
+      <td>${o.book}</td>
+      <td>${o.title}</td>
+      <td>€${fmt(o.value)}</td>
+      <td>${o.deadline||'—'}</td>
+      <td>${o.wager||'—'}</td>
+      <td onclick="cycleStatus(${o.id})">${statusPill(o.status)}</td>
+      <td>${o.note||''}</td>
+      <td>${linkCell}</td>
+      <td>${termsCell}</td>
+      <td><button class="danger-link" onclick="deleteOffer(${o.id})">Elimina</button></td>
+    `;
+    tbody.appendChild(tr);
+    if(o.terms){
+      const termsTr = document.createElement('tr');
+      termsTr.id = `terms-row-${o.id}`;
+      termsTr.style.display = 'none';
+      termsTr.innerHTML = `<td colspan="11" style="background:rgba(255,255,255,.03); white-space:pre-wrap; font-size:.85em; padding:12px 16px;">
+        <strong>Termini e condizioni completi (${o.book} — ${o.title}):</strong><br><br>${(o.terms||'').replace(/</g,'&lt;')}
+      </td>`;
+      tbody.appendChild(termsTr);
+    }
+  });
+}
+
+function toggleTerms(id){
+  const row = document.getElementById(`terms-row-${id}`);
+  if(!row) return;
+  row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+renderOffers();
+
+/* ===================== ACCOUNT ===================== */
+function addAccount(){
+  const book = document.getElementById('accBook').value.trim();
+  if(!book){ alert('Inserisci il nome del bookmaker/exchange.'); return; }
+  const type = document.getElementById('accType').value;
+  const balance = parseFloat(document.getElementById('accBalance').value) || 0;
+  const kyc = document.getElementById('accKyc').value;
+  const risk = document.getElementById('accRisk').value;
+  const note = document.getElementById('accNote').value.trim();
+
+  accounts.push({id:Date.now(), book, type, balance, kyc, risk, note});
+  save(STORE_KEYS.accounts, accounts);
+  document.getElementById('accBook').value='';
+  document.getElementById('accNote').value='';
+  document.getElementById('accBalance').value=0;
+  renderAccounts();
+}
+
+function deleteAccount(id){
+  accounts = accounts.filter(a=>a.id!==id);
+  save(STORE_KEYS.accounts, accounts);
+  renderAccounts();
+}
+
+function riskPill(risk){
+  const map = {'Basso':'ok','Medio':'warn','Alto':'danger'};
+  return `<span class="pill ${map[risk]||'info'}">${risk}</span>`;
+}
+function kycPill(kyc){
+  const map = {'Verificato':'ok','In attesa':'warn','Non verificato':'danger'};
+  return `<span class="pill ${map[kyc]||'info'}">${kyc}</span>`;
+}
+
+function renderAccounts(){
+  const tbody = document.querySelector('#accountsTable tbody');
+  tbody.innerHTML = '';
+  document.getElementById('accountsEmpty').style.display = accounts.length ? 'none' : 'block';
+
+  accounts.forEach(a=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${a.book}</td>
+      <td><span class="badge-type">${a.type}</span></td>
+      <td>€${fmt(a.balance)}</td>
+      <td>${kycPill(a.kyc)}</td>
+      <td>${riskPill(a.risk)}</td>
+      <td>${a.note||''}</td>
+      <td><button class="danger-link" onclick="deleteAccount(${a.id})">Elimina</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+renderAccounts();
+
+/* ===================== STRATEGIA SLOT ===================== */
+function populateStratOfferSelect(){
+  const sel = document.getElementById('stratOfferSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— nessuna, inserisco i dati a mano —</option>';
+  offers.forEach(o=>{
+    const opt = document.createElement('option');
+    opt.value = o.id;
+    opt.textContent = `${o.book} — ${o.title}`;
+    sel.appendChild(opt);
+  });
+  sel.value = current || '';
+}
+
+function populateStratSlotSelect(offer){
+  const sel = document.getElementById('stratSlotSelect');
+  sel.innerHTML = '<option value="">— nessuna slot rilevata, inserisco l\'RTP a mano —</option>';
+  if(!offer || !Array.isArray(offer.slots)) return;
+  offer.slots.forEach((s, idx)=>{
+    const opt = document.createElement('option');
+    opt.value = idx;
+    const rtpLabel = s.rtp ? s.rtp : 'RTP ignoto';
+    const volLabel = s.volatility ? s.volatility : 'volatilità ignota';
+    opt.textContent = `${s.name} (${rtpLabel}, ${volLabel})`;
+    sel.appendChild(opt);
+  });
+}
+
+function applyStratOffer(){
+  const sel = document.getElementById('stratOfferSelect');
+  const offer = offers.find(o => String(o.id) === sel.value);
+  populateStratSlotSelect(offer);
+  if(!offer) return;
+  if(offer.value) document.getElementById('stratFunbonus').value = offer.value;
+  if(offer.max_cap) document.getElementById('stratMaxCap').value = offer.max_cap;
+  const wagerMatch = (offer.wager || '').match(/(\d+)\s*x/i);
+  if(wagerMatch) document.getElementById('stratWagering').value = wagerMatch[1];
+}
+
+function applyStratSlot(){
+  const offerSel = document.getElementById('stratOfferSelect');
+  const offer = offers.find(o => String(o.id) === offerSel.value);
+  const slotSel = document.getElementById('stratSlotSelect');
+  if(!offer || slotSel.value === '') return;
+  const slot = offer.slots[parseInt(slotSel.value, 10)];
+  if(!slot) return;
+  const rtpNum = parseFloat(slot.rtp);
+  if(!isNaN(rtpNum)) document.getElementById('stratRTP').value = rtpNum;
+}
+
+function runStrategy(){
+  const funbonus = parseFloat(document.getElementById('stratFunbonus').value) || 0;
+  const wagering = parseFloat(document.getElementById('stratWagering').value) || 0;
+  const maxCap = parseFloat(document.getElementById('stratMaxCap').value) || 0;
+  const rtp = parseFloat(document.getElementById('stratRTP').value) || 0;
+
+  if(funbonus <= 0 || wagering <= 0 || rtp <= 0){
+    document.getElementById('stratResult').innerHTML =
+      '<div class="empty">Inserisci fun bonus, wagering e RTP validi (maggiori di zero).</div>';
+    return;
+  }
+
+  const expectedLossRate = (100 - rtp) / 100; // (1 - RTP)
+  const target = (funbonus * wagering * expectedLossRate) + maxCap;
+  const spinStake = funbonus / 20;
+  const totalTurnover = funbonus * wagering;
+
+  document.getElementById('stratResult').innerHTML = `
+    <div class="result-row"><span class="label">Target da raggiungere (fine fase 1)</span><span class="val good">€${fmt(target)}</span></div>
+    <div class="result-row"><span class="label">Puntata fase Target (fun bonus ÷ 20)</span><span class="val">€${fmt(spinStake)}</span></div>
+    <div class="result-row"><span class="label">Volume di puntata totale richiesto (wagering)</span><span class="val">€${fmt(totalTurnover)}</span></div>
+    <div class="result-row"><span class="label">Fase Rollover</span><span class="val">sempre a spin minimi, RTP alto / volatilità medio-bassa</span></div>
+  `;
+}
+
+// Ripopola il menu promozioni ogni volta che si entra nel tab, cosi' resta aggiornato
+document.querySelector('.tab-btn[data-tab="slotstrategy"]').addEventListener('click', populateStratOfferSelect);
+populateStratOfferSelect();
+
+/* ===================== PROFILO & PIANO ===================== */
+function toggleAssumptions(){
+  const box = document.getElementById('assumptionsBox');
+  const arrow = document.getElementById('assumptionsToggle');
+  const isHidden = box.style.display === 'none';
+  box.style.display = isHidden ? 'block' : 'none';
+  arrow.textContent = isHidden ? '▴' : '▾';
+}
+
+// Tempo medio (minuti) per completare un'offerta, in base all'esperienza:
+// meno esperienza = piu' tempo per verificare quote, T&C, ecc.
+const TIME_PER_OFFER_MIN = { bassa: 30, media: 18, alta: 10 };
+
+// Quota di budget massima consigliata per singola operazione, in base al rischio:
+// piu' basso il rischio, piu' ci si diversifica su piu' bookmaker.
+const STAKE_CAP_PCT = { bassa: 0.10, media: 0.20, alta: 0.35 };
+
+// Fattore base di propensione alle slot (varianza piu' alta) in base al rischio dichiarato,
+// modulato dall'esperienza (chi ha meno esperienza resta piu' vicino al matched betting classico
+// anche se dichiara rischio alto, per prudenza).
+const RISK_BASE = { bassa: 0.10, media: 0.30, alta: 0.50 };
+const EXPERIENCE_MULT = { bassa: 0.5, media: 1.0, alta: 1.3 };
+
+let lastPlan = null;
+
+function computePlan(){
+  const experience = document.getElementById('profExperience').value;
+  const budget = parseFloat(document.getElementById('profBudget').value) || 0;
+  const timeWeekly = parseFloat(document.getElementById('profTime').value) || 0;
+  const risk = document.getElementById('profRisk').value;
+  const goal = parseFloat(document.getElementById('profGoal').value) || 0;
+
+  const mbProfit = parseFloat(document.getElementById('assumMbProfit').value) || 0;
+  const slotProfit = parseFloat(document.getElementById('assumSlotProfit').value) || 0;
+  const marketCap = parseFloat(document.getElementById('assumMarketCap').value) || 0;
+
+  if(budget <= 0 || timeWeekly <= 0) return null;
+
+  // Split strategia
+  let slotShare = RISK_BASE[risk] * EXPERIENCE_MULT[experience];
+  slotShare = Math.max(0, Math.min(slotShare, 0.7));
+  const mbShare = 1 - slotShare;
+
+  // Puntata/esposizione massima consigliata per singola operazione
+  const maxStake = budget * STAKE_CAP_PCT[risk];
+
+  // Capacita' settimanale: minimo tra tempo disponibile e tetto di mercato
+  const timePerOffer = TIME_PER_OFFER_MIN[experience];
+  const capacityByTime = Math.floor((timeWeekly * 60) / timePerOffer);
+  const weeklyCapacity = Math.min(capacityByTime, marketCap);
+  const monthlyCapacity = weeklyCapacity * 4.33;
+
+  // Guadagno mensile stimato (blended in base allo split), con banda +-30%
+  const blendedProfitPerOffer = (mbShare * mbProfit) + (slotShare * slotProfit);
+  const estimatedMonthly = monthlyCapacity * blendedProfitPerOffer;
+  const lowEstimate = estimatedMonthly * 0.7;
+  const highEstimate = estimatedMonthly * 1.3;
+
+  const limitingFactor = capacityByTime <= marketCap
+    ? `limitata dal tuo tempo disponibile (${timeWeekly} h/sett a ~${timePerOffer} min/offerta)`
+    : `limitata dal tetto di offerte realisticamente disponibili sul mercato (${marketCap}/settimana)`;
+
+  return { experience, budget, timeWeekly, risk, goal, mbShare, slotShare, maxStake,
+           weeklyCapacity, monthlyCapacity, lowEstimate, highEstimate, limitingFactor };
+}
+
+function runProfilePlan(){
+  const plan = computePlan();
+  if(!plan){
+    document.getElementById('profileResult').innerHTML =
+      '<div class="empty">Inserisci un budget e un tempo settimanale maggiori di zero.</div>';
+    lastPlan = null;
+    return;
+  }
+  lastPlan = plan;
+
+  let verdict, verdictClass;
+  if(plan.goal <= plan.lowEstimate){
+    verdict = 'Obiettivo realistico con questi parametri.';
+    verdictClass = 'good';
+  } else if(plan.goal <= plan.highEstimate){
+    verdict = 'Obiettivo raggiungibile ma nella fascia alta della stima: poco margine.';
+    verdictClass = 'good';
+  } else {
+    verdict = 'Obiettivo probabilmente troppo alto per questi parametri: valuta più ore, più budget (per lavorare più bookmaker in parallelo) o un obiettivo più prudente.';
+    verdictClass = 'bad';
+  }
+
+  document.getElementById('profileResult').innerHTML = `
+    <div class="result-row"><span class="label">Split consigliato</span><span class="val">${fmt(plan.mbShare*100)}% matched betting / ${fmt(plan.slotShare*100)}% slot bonus hunting</span></div>
+    <div class="result-row"><span class="label">Esposizione massima per operazione</span><span class="val">€${fmt(plan.maxStake)}</span></div>
+    <div class="result-row"><span class="label">Capacità stimata</span><span class="val">${plan.weeklyCapacity} offerte/settimana (${fmt(plan.monthlyCapacity)}/mese) — ${plan.limitingFactor}</span></div>
+    <div class="result-row"><span class="label">Guadagno mensile stimato</span><span class="val">€${fmt(plan.lowEstimate)} – €${fmt(plan.highEstimate)}</span></div>
+    <div class="result-row"><span class="label">Obiettivo dichiarato</span><span class="val">€${fmt(plan.goal)}</span></div>
+    <div class="result-row"><span class="label">Verdetto</span><span class="val ${verdictClass}">${verdict}</span></div>
+  `;
+
+  generateSchedule();
+}
+
+function generateSchedule(){
+  const tbody = document.querySelector('#scheduleTable tbody');
+  tbody.innerHTML = '';
+  const emptyEl = document.getElementById('scheduleEmpty');
+  const noteEl = document.getElementById('scheduleNote');
+
+  if(!lastPlan){
+    emptyEl.style.display = 'block';
+    emptyEl.textContent = 'Calcola prima il piano qui sopra: la scaletta userà i suoi parametri.';
+    noteEl.textContent = '';
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+
+  const actionable = offers.filter(o => {
+    if(o.status === 'Completata' || o.status === 'Scaduta') return false;
+    if(o.deadline && o.deadline < today) return false;
+    return true;
+  });
+
+  const withType = actionable.map(o => Object.assign({}, o, {
+    _type: (Array.isArray(o.slots) && o.slots.length > 0) ? 'slot' : 'matched'
+  }));
+
+  const withinBudget = withType.filter(o => !o.value || o.value <= lastPlan.maxStake);
+  const overBudget = withType.length - withinBudget.length;
+
+  function sortFn(a,b){
+    const da = a.deadline || '9999-99-99';
+    const db = b.deadline || '9999-99-99';
+    if(da !== db) return da.localeCompare(db);
+    return (b.value||0) - (a.value||0);
+  }
+
+  const mbList = withinBudget.filter(o=>o._type==='matched').sort(sortFn);
+  const slotList = withinBudget.filter(o=>o._type==='slot').sort(sortFn);
+
+  const mbTarget = Math.round(lastPlan.weeklyCapacity * lastPlan.mbShare);
+  const slotTarget = lastPlan.weeklyCapacity - mbTarget;
+
+  let picked = [].concat(mbList.slice(0, mbTarget), slotList.slice(0, slotTarget));
+
+  // Se una categoria non ha abbastanza offerte, riempi gli slot liberi con l'altra
+  const remaining = lastPlan.weeklyCapacity - picked.length;
+  if(remaining > 0){
+    const usedIds = new Set(picked.map(o=>o.id));
+    const leftover = mbList.concat(slotList).filter(o=>!usedIds.has(o.id)).sort(sortFn);
+    picked = picked.concat(leftover.slice(0, remaining));
+  }
+
+  picked.sort(sortFn);
+
+  if(picked.length === 0){
+    emptyEl.style.display = 'block';
+    emptyEl.textContent = 'Nessuna offerta salvata rientra nel piano attuale (budget/scadenze). Aggiungi offerte nel tab Offerte o importale con lo scraper.';
+    noteEl.textContent = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  picked.forEach((o, idx) => {
+    const tr = document.createElement('tr');
+    const typeLabel = o._type === 'slot' ? '🎰 Slot' : '🧮 Matched';
+    const stakeSuggested = o._type === 'slot'
+      ? `Fun bonus €${fmt(o.value||0)} → vedi Strategia Slot`
+      : `€${fmt(Math.min(o.value || lastPlan.maxStake, lastPlan.maxStake))}`;
+    const linkCell = o.url ? `<a class="link-out" href="${o.url}" target="_blank" rel="noopener">Vedi ↗</a>` : '';
+    tr.innerHTML = `
+      <td>${idx+1}</td>
+      <td><span class="badge-type">${typeLabel}</span></td>
+      <td>${o.book}</td>
+      <td>${o.title}</td>
+      <td>€${fmt(o.value||0)}</td>
+      <td>${o.deadline||'—'}</td>
+      <td>${stakeSuggested}</td>
+      <td>${linkCell}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const notes = [];
+  notes.push(`${picked.length} offerte selezionate su ${lastPlan.weeklyCapacity} di capacità settimanale.`);
+  if(overBudget > 0) notes.push(`${overBudget} offerte escluse perché superano l'esposizione massima di €${fmt(lastPlan.maxStake)}.`);
+  const excludedByStatus = offers.length - actionable.length;
+  if(excludedByStatus > 0) notes.push(`${excludedByStatus} offerte escluse perché già completate, scadute o con scadenza passata.`);
+  noteEl.textContent = notes.join(' ');
+}
+
+/* ===================== BACKUP & TRASFERIMENTO ===================== */
+function collectProfileInputs(){
+  const ids = ['profExperience','profBudget','profTime','profRisk','profGoal',
+               'assumMbProfit','assumSlotProfit','assumMarketCap'];
+  const out = {};
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) out[id] = el.value;
+  });
+  return out;
+}
+
+function applyProfileInputs(data){
+  if(!data) return;
+  Object.keys(data).forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = data[id];
+  });
+}
+
+function exportBackup(){
+  const payload = {
+    app: 'MatchBetting Assistant',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    bets,
+    offers,
+    accounts,
+    profile: collectProfileInputs()
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'matchbetting_backup.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function mergeById(existing, incoming){
+  const existingIds = new Set(existing.map(x=>x.id));
+  let added = 0;
+  incoming.forEach(item=>{
+    if(!existingIds.has(item.id)){
+      existing.push(item);
+      existingIds.add(item.id);
+      added++;
+    }
+  });
+  return added;
+}
+
+function importBackup(mode){
+  const input = document.getElementById('backupFile');
+  const statusEl = document.getElementById('backupStatus');
+  if(!input.files || !input.files[0]){
+    statusEl.textContent = 'Seleziona prima un file di backup.';
+    statusEl.style.color = 'var(--danger)';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    let data;
+    try{
+      data = JSON.parse(e.target.result);
+    }catch(err){
+      statusEl.textContent = 'File non valido: non è un JSON leggibile.';
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
+    if(typeof data !== 'object' || data === null){
+      statusEl.textContent = 'Formato inatteso nel file di backup.';
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
+
+    const incomingBets = Array.isArray(data.bets) ? data.bets : [];
+    const incomingOffers = Array.isArray(data.offers) ? data.offers : [];
+    const incomingAccounts = Array.isArray(data.accounts) ? data.accounts : [];
+
+    if(mode === 'replace'){
+      bets = incomingBets.slice();
+      offers = incomingOffers.slice();
+      accounts = incomingAccounts.slice();
+      applyProfileInputs(data.profile);
+      statusEl.textContent = `Dati sostituiti: ${bets.length} scommesse, ${offers.length} offerte, ${accounts.length} account.`;
+    } else {
+      const addedBets = mergeById(bets, incomingBets);
+      const addedOffers = mergeById(offers, incomingOffers);
+      const addedAccounts = mergeById(accounts, incomingAccounts);
+      statusEl.textContent = `Uniti: +${addedBets} scommesse, +${addedOffers} offerte, +${addedAccounts} account.`;
+    }
+
+    save(STORE_KEYS.bets, bets);
+    save(STORE_KEYS.offers, offers);
+    save(STORE_KEYS.accounts, accounts);
+    renderBets();
+    renderOffers();
+    renderAccounts();
+    populateStratOfferSelect();
+    statusEl.style.color = 'var(--accent)';
+  };
+  reader.readAsText(input.files[0]);
+}
+
+document.getElementById('betDate').value = new Date().toISOString().slice(0,10);
+silentAutoRefresh();
+</script>
+</body>
+</html>

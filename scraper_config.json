@@ -1,0 +1,304 @@
+{
+  "_readme": "Aggiungi/rimuovi bookmaker qui. 'url' e' la pagina promozioni. I selettori CSS sono opzionali: se li lasci vuoti o non trovano nulla, lo script usa un'estrazione euristica basata su parole chiave (bonus, free bet, quota maggiorata, cashback, ecc). Se un bookmaker cambia sito e i selettori smettono di funzionare, aggiornali ispezionando la pagina col tasto destro > Ispeziona nel browser. Aggiornato il 2026-08-06 dopo verifica diretta di tutti gli URL/selettori sui siti reali. Quando l'estrazione euristica e' usata (nessun selettore configurato), i risultati passano anche dal filtro di 'monetizzabilita'' qui sotto: 'monetizable_keywords' sono i meccanismi di bonus riconosciuti (deve comparirne almeno uno + un valore quantificabile: importo, %, giri gratis, quota minima), 'exclude_keywords' sono frasi che scartano sempre il blocco (menu, login, errori, giochi a classifica/estrazione senza valore garantito). Aggiungi parole a queste due liste se vedi ancora rumore o offerte valide scartate per errore.",
+  "keywords": ["bonus", "free bet", "scommessa gratis", "cashback", "quota maggiorata", "quota potenziata", "promo", "promozione", "welcome", "benvenuto", "ricarica", "reload", "gratis"],
+  "monetizable_keywords": ["bonus di benvenuto", "welcome bonus", "free bet", "freebet", "bonus cash", "fun bonus", "bonus deposito", "primo deposito", "cashback", "rimborso", "quota maggiorata", "quota potenziata", "giri gratis", "free spin", "bonus sport", "bonus scommesse", "bonus slot", "deposito minimo", "scommessa minima", "quota minima", "moltiplicatore"],
+  "exclude_keywords": ["recupera password", "hai dimenticato", "inserisci le tue credenziali", "username", "accedi con passkey", "non hai un account", "non hai ancora un conto", "errore 404", "si è verificato un errore", "ci scusiamo per il disagio", "preferenze di contatto", "comunicazioni di marketing", "cookie policy", "faq aiuto", "orari di gioco", "scala la classifica", "classifica generale", "gioco gratuito giornaliero", "svelamenti al giorno", "punti convertibili", "club riservato", "regolamento completo", "assistenza clienti", "porta un amico", "invita un amico", "montepremi", "bonus progressivo"],
+  "bookmakers": [
+    {
+      "name": "Sisal",
+      "url": "https://www.sisal.it/bonus/bonus-benvenuto",
+      "card_selector": ".cardBonusBenvenuto__button",
+      "title_selector": ".cardBonusBenvenuto__subtitle",
+      "note": "AAMS/ADM. URL vecchio (scommesse/promozioni) dava 404. Questa pagina copre solo i bonus di benvenuto per categoria: le promo continuative sono nell'area riservata dietro login, non accessibili allo scraper."
+    },
+    {
+      "name": "Snai",
+      "url": "https://www.snai.it/bonus/bonus-benvenuto",
+      "card_selector": ".cardBonusBenvenuto__button",
+      "title_selector": ".cardBonusBenvenuto__subtitle",
+      "note": "Stesso gruppo/piattaforma di Sisal (Snaitech), stessa struttura pagina. URL vecchio (/promozioni) dava 404."
+    },
+    {
+      "name": "Eurobet",
+      "url": "https://www.eurobet.it/it/promo",
+      "card_selector": ".promo-card",
+      "title_selector": ".promo-card__title",
+      "note": "URL corretto e' /it/promo, non /it/promozioni (dava 404)."
+    },
+    {
+      "name": "Bet365",
+      "url": "https://www.bet365.it/it/promozioni/",
+      "card_selector": "",
+      "title_selector": "",
+      "note": "Funzionava gia' con estrazione euristica (12 promo trovate)."
+    },
+    {
+      "name": "Goldbet",
+      "url": "https://www.goldbet.it/bonus/tutti",
+      "card_selector": "article.promo--item",
+      "title_selector": ".promo--title",
+      "note": "URL vecchio (/promozioni) dava 404. Corretto: /bonus/tutti."
+    },
+    {
+      "name": "Planetwin365",
+      "url": "https://www.planetwin365.it/bonus/tutti",
+      "card_selector": "article.promo--item",
+      "title_selector": ".promo--title",
+      "note": "Stessa piattaforma di Goldbet/Lottomatica, stessa struttura. URL vecchio (/it/promotions) redirigeva alla home."
+    },
+    {
+      "name": "StarCasino / StarVegas",
+      "url": "https://www.starvegas.it/",
+      "card_selector": "",
+      "title_selector": "",
+      "note": "Il sito NON ha una pagina indice 'tutte le promozioni' (l'URL /promozioni va in redirect loop): ogni offerta ha una propria pagina dedicata (es. /promozioni/sport, /promozioni/bonus-benvenuto, /promozioni/slot-casino). Config puntata sulla homepage con estrazione euristica come miglior compromesso; affidabilita' inferiore rispetto agli altri bookmaker, verifica manuale consigliata."
+    },
+    {
+      "name": "Betflag",
+      "url": "https://www.betflag.it/promozioni",
+      "card_selector": "",
+      "title_selector": "",
+      "note": "Funzionava gia' con estrazione euristica (5 promo trovate)."
+    },
+    {
+      "name": "William Hill",
+      "url": "https://www.williamhill.it/promozioni",
+      "card_selector": "",
+      "title_selector": "",
+      "note": "Funzionava gia' con estrazione euristica (12 promo trovate)."
+    },
+    {
+      "name": "Lottomatica",
+      "url": "https://www.lottomatica.it/bonus/tutti",
+      "card_selector": "article.promo--item",
+      "title_selector": ".promo--title",
+      "note": "URL vecchio (/scommesse/promozioni) redirigeva a una pagina bonus specifica senza card multiple. Corretto: /bonus/tutti."
+    },
+    {
+      "name": "Betfair Exchange",
+      "url": "https://promos.betfair.it/exchange",
+      "card_selector": "li.promo-exchange",
+      "title_selector": ".promo-name",
+      "note": "Il dominio vecchio (promozioni.betfair.it) non esiste piu' (DNS_PROBE_FINISHED_NXDOMAIN). Corretto: promos.betfair.it/exchange."
+    },
+    {
+      "name": "NetBet",
+      "url": "https://www.netbet.it/promozioni",
+      "card_selector": ".rettangolo-promo",
+      "title_selector": ".titolo-promo",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. 14 promo trovate."
+    },
+    {
+      "name": "Marathonbet",
+      "url": "https://www.marathonbet.it/promotions",
+      "card_selector": ".promoCard",
+      "title_selector": ".promoCard__title",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. 25 promo trovate."
+    },
+    {
+      "name": "Bwin",
+      "url": "https://www.bwin.it/it/promo/offers",
+      "card_selector": ".offers-teaser-wrapper-single",
+      "title_selector": ".pc-h",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. URL /it/promozioni da' 404, quello corretto e' /it/promo/offers. 38 promo trovate."
+    },
+    {
+      "name": "LeoVegas",
+      "url": "https://www.leovegas.it/promozioni",
+      "card_selector": ".MuiPaper-root.MuiPaper-elevation1",
+      "title_selector": ".MuiTypography-subtitle1",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. 11 promo trovate. Selettore basato su classi Material-UI: se in futuro smette di funzionare, la libreria UI potrebbe essere cambiata, va rifatto ispezionando la pagina."
+    },
+    {
+      "name": "AdmiralBet",
+      "url": "https://www.admiralbet.it/promozioni",
+      "card_selector": ".big-card-promotion",
+      "title_selector": ".promo-card-title",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Solo 5 promo in evidenza su questa pagina (altre sono su sottopagine dedicate /promozioni/nome-offerta, non aggregate)."
+    },
+    {
+      "name": "Stake",
+      "url": "https://www.stake.it/promo/index.html",
+      "card_selector": ".promo-card",
+      "title_selector": ".promo-card__title",
+      "note": "Aggiunto 2026-08-07 (concessione ADM post-riordino nov. 2025), verificato dal vivo. 10 promo trovate."
+    },
+    {
+      "name": "Betsson",
+      "url": "https://www.betsson.it/promozioni",
+      "card_selector": ".promoCard",
+      "title_selector": ".promoCard__title",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di Marathonbet/Codere (42 promo trovate)."
+    },
+    {
+      "name": "StanleyBet",
+      "url": "https://www.stanleybet.it/promozioni",
+      "card_selector": ".rettangolo-promo",
+      "title_selector": ".titolo-promo",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di NetBet (23 promo trovate)."
+    },
+    {
+      "name": "DAZN Bet",
+      "url": "https://www.daznbet.it/promo/tutte/",
+      "card_selector": ".elemento-promozioni-modale",
+      "title_selector": ".card-title",
+      "note": "Aggiunto 2026-08-07 (nuovo concessionario ADM), verificato dal vivo. 12 promo trovate."
+    },
+    {
+      "name": "Betpoint",
+      "url": "https://www.betpoint.it/Pagine/Conti/Promozioni/Elenco.aspx",
+      "card_selector": ".slide-item",
+      "title_selector": ".promo-title",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Sito ASP.NET piu' datato ma funzionante (25 promo trovate)."
+    },
+    {
+      "name": "Codere",
+      "url": "https://www.codere.it/promozioni",
+      "card_selector": ".promoCard",
+      "title_selector": ".promoCard__title",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Ex-Cplay, stessa piattaforma di Marathonbet/Betsson (20 promo trovate)."
+    },
+    {
+      "name": "Gioco Digitale",
+      "url": "https://www.giocodigitale.it/it/promo/offers",
+      "card_selector": ".offers-teaser-wrapper-single",
+      "title_selector": ".pc-h",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stesso gruppo/piattaforma di Bwin (Eurobet Italia S.r.l.), 30 promo trovate."
+    },
+    {
+      "name": "TotoSi",
+      "url": "https://www.totosi.it/promo",
+      "card_selector": ".rettangolo-promo",
+      "title_selector": ".titolo-promo",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di NetBet/StanleyBet (11 promo trovate). Nonostante il nome e' scommesse/casino' a tutti gli effetti, non solo lotterie."
+    },
+    {
+      "name": "StarYes",
+      "url": "https://www.staryes.it/promo",
+      "card_selector": ".rettangolo-promo",
+      "title_selector": ".titolo-promo",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di NetBet/StanleyBet/TotoSi (17 promo trovate)."
+    },
+    {
+      "name": "Bgame",
+      "url": "https://www.bgame.it/promo",
+      "card_selector": ".promoRow__card",
+      "title_selector": ".promoRow__title",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Piattaforma propria (19 promo trovate)."
+    },
+    {
+      "name": "Casino di Sanremo",
+      "url": "https://www.casinodisanremo.it/bonus",
+      "card_selector": ".elemento-promozioni-modale",
+      "title_selector": ".card-title",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Casino' online puro, stessa piattaforma di DAZN Bet (7 promo trovate). Il dominio ADM ufficiale online.casinosanremo.it reindirizza a casinodisanremo.it."
+    },
+    {
+      "name": "Casino di Venezia",
+      "url": "https://www.casinoveneziaonline.it/promozioni",
+      "card_selector": "li.promo",
+      "title_selector": "",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Casino' online puro (11 promo trovate). Nessun titolo separato nella card: title_selector vuoto, usa il testo dell'intera card."
+    },
+    {
+      "name": "Vincitu",
+      "url": "https://www.vincitu.it/promo",
+      "card_selector": ".promoCard",
+      "title_selector": ".promoCard__title",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di Marathonbet/Betsson/Codere (45 promo trovate). Nonostante il nome e' scommesse/casino' a tutti gli effetti."
+    },
+    {
+      "name": "Giochi24",
+      "url": "https://www.giochi24.it/gioco-online/promozioni.html",
+      "card_selector": "[class^=\"box-top-\"]",
+      "title_selector": "",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Concessionario minore (4 promo trovate). Nessun titolo separato: title_selector vuoto, usa il testo dell'intera card."
+    },
+    {
+      "name": "Gioca7",
+      "url": "https://www.gioca7.it/promo",
+      "card_selector": ".rettangolo-promo",
+      "title_selector": ".titolo-promo",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di NetBet/StanleyBet/TotoSi/StarYes (30 promo trovate)."
+    },
+    {
+      "name": "Eplay24",
+      "url": "https://eplay24.it/promozioni",
+      "mode": "detail_pages",
+      "link_selector": "a[href*=\"/promozione/\"]",
+      "detail_title_selector": ".promozione__top__title",
+      "detail_content_selector": ".promozione__content",
+      "max_details": 15,
+      "note": "Aggiunto 2026-08-07. Le card sulla pagina indice sono banner-immagine senza testo estraibile (nessuna API JSON dietro al carosello). Soluzione: modalita' 'detail_pages' a due passaggi implementata in scraper_promozioni.py — la pagina indice serve solo a raccogliere i link (23 trovati), poi ogni pagina di dettaglio viene visitata singolarmente: li' il testo e' reale e ricco (titolo + descrizione + condizioni con importi/quote), verificato dal vivo su /scommesse/promozione/bonus-benvenuto-sport-freebet. Max 15 dettagli per run per contenere il numero di richieste."
+    },
+    {
+      "name": "Betwin360",
+      "url": "https://betwin360.it/promozioni",
+      "mode": "detail_pages",
+      "link_selector": "a[href*=\"/promozione/\"]",
+      "detail_title_selector": ".promozione__top__title",
+      "detail_content_selector": ".promozione__content",
+      "max_details": 15,
+      "note": "Aggiunto 2026-08-07. Clone della stessa piattaforma di Eplay24 (identica struttura /promozione/, stesse classi CSS di dettaglio), stesso problema banner-immagine sull'indice risolto con la modalita' 'detail_pages'. Verificato dal vivo su /games/promozione/playson (nota: quella specifica promo contiene 'montepremi', quindi viene scartata dal filtro esclusioni — corretto, e' un torneo a bacino condiviso non un valore garantito)."
+    },
+    {
+      "name": "Sportium",
+      "url": "https://sportium.it/promozioni",
+      "mode": "detail_pages",
+      "link_selector": "a[href*=\"/promozione/\"]",
+      "detail_title_selector": ".promozione__top__title",
+      "detail_content_selector": ".promozione__content",
+      "max_details": 15,
+      "note": "Aggiunto 2026-08-07. Terzo clone della stessa piattaforma di Eplay24/Betwin360, stesso problema/soluzione 'detail_pages'. Indice con 21 link a promo di dettaglio verificati dal vivo."
+    },
+    {
+      "name": "Sunbet",
+      "url": "https://www.sunbet.it/promo",
+      "card_selector": ".rettangolo-promo",
+      "title_selector": ".titolo-promo",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di NetBet/StanleyBet/TotoSi/StarYes/Gioca7/Sportbet (54 promo trovate). URL /promozioni dava 404, corretto: /promo."
+    },
+    {
+      "name": "Netwin",
+      "url": "https://www.netwin.it/promo",
+      "card_selector": ".rettangolo-promo",
+      "title_selector": ".titolo-promo",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di NetBet/StanleyBet/Sunbet (27 promo trovate)."
+    },
+    {
+      "name": "Perlaplay",
+      "url": "https://www.perlaplay.it/promo",
+      "card_selector": ".promo3Container",
+      "title_selector": ".promo3Title",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Piattaforma propria, diversa dalle altre gia' in lista (9 promo trovate)."
+    },
+    {
+      "name": "Domusbet",
+      "url": "https://www.domusbet.it/promo",
+      "card_selector": ".rettangolo-promo",
+      "title_selector": ".titolo-promo",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di NetBet/StanleyBet/Sunbet/Netwin (26 promo trovate)."
+    },
+    {
+      "name": "Sportbet",
+      "url": "https://www.sportbet.it/promo",
+      "card_selector": ".rettangolo-promo",
+      "title_selector": ".titolo-promo",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di NetBet/StanleyBet/Sunbet/Netwin/Domusbet (24 promo trovate)."
+    },
+    {
+      "name": "Quigioco",
+      "url": "https://www.quigioco.it/promo",
+      "card_selector": ".promoCard",
+      "title_selector": ".promoCard__title",
+      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di Marathonbet/Betsson/Codere/Vincitu (13 promo trovate)."
+    },
+    {
+      "name": "PokerStars",
+      "url": "https://www.pokerstars.it/bonus/bonus-benvenuto",
+      "card_selector": ".cardBonusBenvenuto__button",
+      "title_selector": ".cardBonusBenvenuto__subtitle",
+      "note": "Aggiunto 2026-08-07 dopo ricontrollo su segnalazione dell'utente: e' un clone della stessa piattaforma di Sisal/Snai (Flutter/PokerStars group), stessi selettori e stesso URL /bonus/bonus-benvenuto. 4 card trovate. Il controllo precedente aveva provato /promotions/ (redirige comunque qui) ma non aveva verificato i selettori giusti. Come per Sisal/Snai, questa pagina copre solo i bonus di benvenuto per categoria: le promo continuative sono nell'area riservata dietro login."
+    }
+  ]
+}

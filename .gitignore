@@ -1,0 +1,14 @@
+# File locali di servizio: non servono nel repo pubblico, cambiano/crescono
+# ad ogni run e non contengono nulla di utile da tenere in versione.
+scraper_log.txt
+scraper_state.json
+__pycache__/
+*.pyc
+
+# Residuo innocuo di un tentativo di setup automatico non riuscito: se non
+# l'hai ancora cancellata da Esplora File, non deve comunque finire nel repo.
+.git_da_eliminare_manualmente/
+
+# Dati personali dell'app (scommesse, conti, piano) NON vengono mai scritti
+# su file: restano solo in localStorage nel browser. Solo promozioni.json
+# (catalogo promo pubblico, non sensibile) viene pubblicato di proposito.
