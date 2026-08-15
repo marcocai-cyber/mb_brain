@@ -110,6 +110,63 @@
   .thumb-placeholder{width:44px; height:44px; border-radius:8px; background:var(--panel2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:16px;}
   a.link-out{color:var(--accent2); font-size:12px; text-decoration:none;}
   a.link-out:hover{text-decoration:underline;}
+
+  /* ---- Card anteprima offerte ---- */
+  .offer-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px;}
+  .offer-card{
+    background:var(--panel2); border:1px solid var(--border); border-radius:12px;
+    overflow:hidden; cursor:pointer; display:flex; flex-direction:column;
+    transition:border-color .15s, transform .15s;
+  }
+  .offer-card:hover{border-color:var(--accent2); transform:translateY(-2px);}
+  .offer-card-img{width:100%; height:110px; object-fit:cover; display:block; background:var(--panel);}
+  .offer-card-img-placeholder{
+    width:100%; height:110px; display:flex; align-items:center; justify-content:center;
+    font-size:32px; background:var(--panel); color:var(--muted);
+  }
+  .offer-card-body{padding:12px 14px 14px; display:flex; flex-direction:column; gap:6px; flex:1;}
+  .offer-card-book{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px;}
+  .offer-card-title{font-size:14px; font-weight:700; line-height:1.3;}
+  .offer-card-desc{
+    font-size:12.5px; color:var(--muted); line-height:1.45; flex:1;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .offer-card-meta{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:4px;}
+  .offer-card-value{font-size:13px; font-weight:800; color:var(--accent);}
+  .offer-card-actions{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:2px;}
+
+  /* ---- Modale dettaglio offerta ---- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(6,9,16,.72);
+    align-items:center; justify-content:center; padding:20px; z-index:1000;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-box{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    max-width:560px; width:100%; max-height:88vh; overflow-y:auto; position:relative;
+  }
+  .modal-img{width:100%; height:180px; object-fit:cover; display:block; background:var(--panel2);}
+  .modal-img-placeholder{
+    width:100%; height:180px; display:flex; align-items:center; justify-content:center;
+    font-size:48px; background:var(--panel2); color:var(--muted);
+  }
+  .modal-close{
+    position:absolute; top:10px; right:10px; width:32px; height:32px; border-radius:50%;
+    background:rgba(15,20,32,.75); border:1px solid var(--border); color:var(--text);
+    font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .modal-close:hover{border-color:var(--accent2);}
+  .modal-body{padding:18px 20px 20px;}
+  .modal-body h3{margin:0 0 4px; font-size:18px;}
+  .modal-book{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:10px;}
+  .modal-facts{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin:14px 0;}
+  .modal-fact{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:8px 10px;}
+  .modal-fact .lbl{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px;}
+  .modal-fact .val{font-size:13.5px; font-weight:700; margin-top:2px;}
+  .modal-section{margin-top:16px;}
+  .modal-section h4{margin:0 0 6px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px;}
+  .modal-terms{font-size:13px; line-height:1.6; white-space:pre-wrap; color:var(--text);}
+  .modal-actions{display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;}
 </style>
 </head>
 <body>
@@ -444,16 +501,14 @@
 
     <div class="card">
       <h2>Offerte attive</h2>
-      <div class="table-wrap">
-        <table id="offersTable">
-          <thead>
-            <tr><th></th><th>Bookmaker</th><th>Offerta</th><th>Valore</th><th>Scadenza</th><th>Wagering</th><th>Stato</th><th>Note</th><th></th><th>T&amp;C</th><th></th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+      <p style="color:var(--muted); font-size:12.5px; margin:-6px 0 14px;">Clicca su una card per vedere la descrizione completa, i termini e condizioni e le altre informazioni.</p>
+      <div class="offer-grid" id="offersGrid"></div>
       <div class="empty" id="offersEmpty" style="display:none;">Nessuna offerta salvata ancora.</div>
     </div>
+  </div>
+
+  <div class="modal-overlay" id="offerModalOverlay" onclick="if(event.target===this) closeOfferModal()">
+    <div class="modal-box" id="offerModalBox"></div>
   </div>
 
   <!-- ===================== ACCOUNT ===================== -->
@@ -1428,53 +1483,98 @@ function statusPill(status){
   return `<span class="pill ${map[status]||'info'}" style="cursor:pointer" title="Clicca per cambiare stato">${status}</span>`;
 }
 
+// Breve descrizione mostrata sulla card: preferisce la nota inserita a mano,
+// altrimenti usa l'inizio dei T&C raccolti dallo scraper, altrimenti il wagering.
+function offerShortDesc(o){
+  const src = (o.note || o.terms || '').trim();
+  if(src) return src.length > 140 ? src.slice(0,140).trim() + '…' : src;
+  if(o.wager) return `Requisito di puntata: ${o.wager}`;
+  return 'Nessuna descrizione disponibile — clicca per i dettagli.';
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function renderOffers(){
-  const tbody = document.querySelector('#offersTable tbody');
-  tbody.innerHTML = '';
+  const grid = document.getElementById('offersGrid');
+  grid.innerHTML = '';
   document.getElementById('offersEmpty').style.display = offers.length ? 'none' : 'block';
 
   [...offers].sort((a,b)=> (a.deadline||'9999').localeCompare(b.deadline||'9999')).forEach(o=>{
-    const tr = document.createElement('tr');
-    const thumb = o.image
-      ? `<img class="thumb" src="${o.image}" alt="" onerror="this.outerHTML='<div class=&quot;thumb-placeholder&quot;>🎁</div>'">`
-      : `<div class="thumb-placeholder">🎁</div>`;
-    const linkCell = o.url
-      ? `<a class="link-out" href="${o.url}" target="_blank" rel="noopener">Vedi ↗</a>`
-      : '';
-    const termsCell = o.terms
-      ? `<button class="link-out" onclick="toggleTerms(${o.id})">📄 T&amp;C</button>`
-      : '<span style="opacity:.4">—</span>';
-    tr.innerHTML = `
-      <td>${thumb}</td>
-      <td>${o.book}</td>
-      <td>${o.title}</td>
-      <td>€${fmt(o.value)}</td>
-      <td>${o.deadline||'—'}</td>
-      <td>${o.wager||'—'}</td>
-      <td onclick="cycleStatus(${o.id})">${statusPill(o.status)}</td>
-      <td>${o.note||''}</td>
-      <td>${linkCell}</td>
-      <td>${termsCell}</td>
-      <td><button class="danger-link" onclick="deleteOffer(${o.id})">Elimina</button></td>
+    const card = document.createElement('div');
+    card.className = 'offer-card';
+    card.onclick = () => openOfferModal(o.id);
+    const img = o.image
+      ? `<img class="offer-card-img" src="${o.image}" alt="" onerror="this.outerHTML='<div class=&quot;offer-card-img-placeholder&quot;>🎁</div>'">`
+      : `<div class="offer-card-img-placeholder">🎁</div>`;
+    card.innerHTML = `
+      ${img}
+      <div class="offer-card-body">
+        <div class="offer-card-book">${escapeHtml(o.book)}</div>
+        <div class="offer-card-title">${escapeHtml(o.title)}</div>
+        <div class="offer-card-desc">${escapeHtml(offerShortDesc(o))}</div>
+        <div class="offer-card-meta">
+          <span class="offer-card-value">€${fmt(o.value)}</span>
+          <span onclick="event.stopPropagation(); cycleStatus(${o.id})">${statusPill(o.status)}</span>
+        </div>
+        <div class="offer-card-actions">
+          <span style="font-size:11px; color:var(--muted)">${o.deadline ? 'Scade: ' + o.deadline : 'Senza scadenza'}</span>
+          <button class="danger-link" onclick="event.stopPropagation(); deleteOffer(${o.id})">Elimina</button>
+        </div>
+      </div>
     `;
-    tbody.appendChild(tr);
-    if(o.terms){
-      const termsTr = document.createElement('tr');
-      termsTr.id = `terms-row-${o.id}`;
-      termsTr.style.display = 'none';
-      termsTr.innerHTML = `<td colspan="11" style="background:rgba(255,255,255,.03); white-space:pre-wrap; font-size:.85em; padding:12px 16px;">
-        <strong>Termini e condizioni completi (${o.book} — ${o.title}):</strong><br><br>${(o.terms||'').replace(/</g,'&lt;')}
-      </td>`;
-      tbody.appendChild(termsTr);
-    }
+    grid.appendChild(card);
   });
 }
 
-function toggleTerms(id){
-  const row = document.getElementById(`terms-row-${id}`);
-  if(!row) return;
-  row.style.display = row.style.display === 'none' ? '' : 'none';
+function openOfferModal(id){
+  const o = offers.find(x=>x.id===id);
+  if(!o) return;
+  const img = o.image
+    ? `<img class="modal-img" src="${o.image}" alt="" onerror="this.outerHTML='<div class=&quot;modal-img-placeholder&quot;>🎁</div>'">`
+    : `<div class="modal-img-placeholder">🎁</div>`;
+  const linkBtn = o.url
+    ? `<a class="link-out" href="${o.url}" target="_blank" rel="noopener" style="padding:9px 16px; border:1px solid var(--border); border-radius:8px;">Vedi sul sito del bookmaker ↗</a>`
+    : '';
+  const termsHtml = o.terms
+    ? `<div class="modal-section"><h4>Descrizione completa / Termini e condizioni</h4><div class="modal-terms">${escapeHtml(o.terms)}</div></div>`
+    : `<div class="modal-section"><h4>Descrizione completa / Termini e condizioni</h4><div class="modal-terms" style="color:var(--muted)">Nessun T&amp;C completo disponibile per questa offerta. ${o.note ? 'Vedi la nota qui sotto.' : ''}</div></div>`;
+  const noteHtml = o.note
+    ? `<div class="modal-section"><h4>Nota</h4><div class="modal-terms">${escapeHtml(o.note)}</div></div>`
+    : '';
+
+  document.getElementById('offerModalBox').innerHTML = `
+    <button class="modal-close" onclick="closeOfferModal()">✕</button>
+    ${img}
+    <div class="modal-body">
+      <div class="modal-book">${escapeHtml(o.book)}</div>
+      <h3>${escapeHtml(o.title)}</h3>
+      <span onclick="cycleStatus(${o.id}); openOfferModal(${o.id})" style="cursor:pointer;">${statusPill(o.status)}</span>
+      <div class="modal-facts">
+        <div class="modal-fact"><div class="lbl">Valore stimato</div><div class="val">€${fmt(o.value)}</div></div>
+        <div class="modal-fact"><div class="lbl">Scadenza</div><div class="val">${o.deadline || '—'}</div></div>
+        <div class="modal-fact"><div class="lbl">Wagering</div><div class="val">${escapeHtml(o.wager) || '—'}</div></div>
+      </div>
+      ${termsHtml}
+      ${noteHtml}
+      <div class="modal-actions">
+        ${linkBtn}
+        <button class="danger-link" style="border:1px solid var(--border); border-radius:8px; padding:9px 16px;" onclick="deleteOffer(${o.id}); closeOfferModal()">Elimina offerta</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('offerModalOverlay').classList.add('open');
 }
+
+function closeOfferModal(){
+  document.getElementById('offerModalOverlay').classList.remove('open');
+}
+
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape') closeOfferModal();
+});
+
 renderOffers();
 
 /* ===================== ACCOUNT ===================== */
