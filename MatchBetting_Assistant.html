@@ -69,6 +69,24 @@
   .result-row .val{font-weight:700;}
   .val.good{color:var(--accent);}
   .val.bad{color:var(--danger);}
+  .mode-selector{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin:12px 0 4px;}
+  .mode-option{flex:1; display:flex; align-items:center; justify-content:center; gap:7px; padding:12px 8px;
+    cursor:pointer; font-size:13px; font-weight:700; color:var(--muted); background:var(--panel2);
+    border-right:1px solid var(--border); text-align:center;}
+  .mode-option:last-child{border-right:none;}
+  .mode-option input{margin:0; accent-color:var(--accent);}
+  .mode-option.active{background:rgba(61,220,151,.14); color:var(--accent);}
+  .calc-result-visual{margin-top:16px; border-radius:12px; overflow:hidden; border:1px solid var(--border);}
+  .result-bar{padding:13px 16px; font-weight:700; font-size:13.5px; display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
+  .result-bar-punta{background:var(--accent); color:#08130d;}
+  .result-bar-banca{background:var(--danger); color:#fff; flex-direction:column; align-items:flex-start; gap:2px;}
+  .result-bar-outcome{background:var(--panel2); color:var(--text); border-bottom:1px solid var(--border);}
+  .result-bar-outcome:last-of-type{border-bottom:none;}
+  .result-bar-sub{font-weight:600; font-size:12px; opacity:.9;}
+  .result-summary{padding:22px 16px; text-align:center; background:var(--panel2);}
+  .result-summary-value{font-size:30px; font-weight:800;}
+  .result-summary-label{font-size:12.5px; color:var(--muted); margin-top:6px;}
+  .result-summary-sub{font-size:12px; color:var(--muted); margin-top:10px;}
   table{width:100%; border-collapse:collapse; font-size:13px;}
   th{text-align:left; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;}
   td{padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;}
@@ -120,178 +138,166 @@
   <div class="tabpage active" id="tab-calc">
     <div class="grid">
       <div class="card">
-        <h2>Calcolatore Back / Lay</h2>
-        <label>Tipo di puntata</label>
-        <select id="calcType">
-          <option value="qualifying">Qualifying bet (soldi veri)</option>
-          <option value="freebet-snr">Free bet — Stake Not Returned (comune)</option>
-          <option value="freebet-sr">Free bet — Stake Returned</option>
-        </select>
+        <h2>🎯 Calcolatore Punta/Banca</h2>
+        <p class="field-hint" style="font-size:13px; margin-top:0; line-height:1.6;">
+          <b>Punta</b> = scommetti normalmente sul bookmaker che un esito accada.
+          <b>Banca</b> = scommetti sull'exchange che quello stesso esito NON accada (fai tu da "banco",
+          come fa il bookmaker con i suoi clienti). Coprendo entrambe le puntate, il risultato della
+          partita non conta quasi più: vinci una cifra simile in entrambi i casi.
+        </p>
+
+        <div class="mode-selector" id="pbModeSelector">
+          <label class="mode-option active"><input type="radio" name="pbMode" value="qualificante" checked onchange="onPbModeChange()"><span>Qualificante</span></label>
+          <label class="mode-option"><input type="radio" name="pbMode" value="riskfree" onchange="onPbModeChange()"><span>Risk Free</span></label>
+          <label class="mode-option"><input type="radio" name="pbMode" value="bonus" onchange="onPbModeChange()"><span>Bonus</span></label>
+        </div>
+        <p class="field-hint" id="pbModeHint" style="margin-top:8px;"></p>
 
         <div class="row">
           <div>
-            <label>Puntata Back (stake, €)</label>
-            <input type="number" id="backStake" value="20" step="0.01" min="0">
+            <label id="pbStakeLabel">Quanto punti sul bookmaker (€)</label>
+            <input type="number" id="pbStake" value="20" step="0.01" min="0">
           </div>
           <div>
-            <label>Quota Back</label>
-            <input type="number" id="backOdds" value="3.5" step="0.01" min="1.01">
+            <label>Quota sul bookmaker</label>
+            <input type="number" id="pbOdds" value="3.5" step="0.01" min="1.01">
           </div>
+        </div>
+
+        <div class="row" id="pbRefundRow" style="display:none;">
+          <div>
+            <label>Rimborso se perdi (€)</label>
+            <input type="number" id="pbRefund" value="20" step="0.01" min="0">
+          </div>
+        </div>
+
+        <div id="pbBonusTypeRow" style="display:none;">
+          <label>Questo bonus, se vinci, restituisce anche la puntata?</label>
+          <select id="pbBonusType">
+            <option value="snr">No, solo la vincita (il caso più comune)</option>
+            <option value="sr">Sì, torna anche la puntata</option>
+          </select>
         </div>
 
         <div class="row">
           <div>
-            <label>Quota Lay (exchange)</label>
-            <input type="number" id="layOdds" value="3.6" step="0.01" min="1.01">
+            <label>Quota in banca (sull'exchange)</label>
+            <input type="number" id="pbLayOdds" value="3.6" step="0.01" min="1.01">
           </div>
           <div>
-            <label>Commissione exchange (%)</label>
-            <input type="number" id="commission" value="2" step="0.1" min="0">
+            <label>Commissione dell'exchange (%)</label>
+            <input type="number" id="pbCommission" value="2" step="0.1" min="0">
           </div>
         </div>
+        <p class="field-hint" style="margin-top:2px;">La commissione la trovi nelle impostazioni del tuo account exchange (di solito 2-5%).</p>
 
         <div class="form-actions">
-          <button class="primary" onclick="runCalc()">Calcola</button>
-          <button class="ghost" onclick="sendCalcToTracker()">➕ Aggiungi al tracker</button>
+          <button class="primary" onclick="runPBCalc()">Calcola</button>
+          <button class="ghost" onclick="sendPBToTracker()">➕ Aggiungi al tracker</button>
         </div>
 
-        <div class="result-box" id="calcResult"></div>
+        <div id="pbResult"></div>
       </div>
 
       <div class="card">
         <h2>Come funziona</h2>
         <p style="color:var(--muted); font-size:13.5px; line-height:1.6;">
-          Il <b>matched betting</b> consente di estrarre valore dai bonus dei bookmaker piazzando una puntata
-          "back" sul bookmaker e coprendo lo stesso esito con una puntata "lay" su un exchange, azzerando
-          (o quasi) il rischio.
+          Il <b>matched betting</b> consente di estrarre valore dai bonus dei bookmaker piazzando una
+          puntata sul bookmaker (<b>punta</b>) e coprendo lo stesso esito con una puntata contraria
+          sull'exchange (<b>banca</b>), azzerando (o quasi) il rischio: qualunque cosa succeda nella
+          partita, il risultato per te cambia pochissimo. Ci sono 3 situazioni tipiche:
         </p>
-        <h3>Qualifying bet</h3>
-        <p style="color:var(--muted); font-size:13px;">Puntata con soldi veri richiesta per sbloccare il bonus. Piccola perdita attesa pari al costo di copertura (di solito 1-3% dello stake).</p>
-        <h3>Free bet Stake Not Returned</h3>
-        <p style="color:var(--muted); font-size:13px;">Il bookmaker non restituisce lo stake se vinci: la lay stake ottimale è più bassa dello stake back per massimizzare l'estrazione di valore (~70-80%).</p>
-        <h3>Free bet Stake Returned</h3>
-        <p style="color:var(--muted); font-size:13px;">Lo stake viene restituito in caso di vincita: si calcola come una qualifying bet.</p>
+        <h3>Qualificante</h3>
+        <p style="color:var(--muted); font-size:13px;">Punti soldi veri, di solito per sbloccare un bonus di benvenuto. Piccola perdita attesa pari al costo di copertura (di solito 1-3% della puntata).</p>
+        <h3>Risk Free</h3>
+        <p style="color:var(--muted); font-size:13px;">Punti soldi veri, ma se perdi il bookmaker ti rimborsa (in bonus o in contanti) fino all'importo che indichi. Copri comunque la puntata in banca: incassi una cifra simile sia che tu vinca sia che tu perda.</p>
+        <h3>Bonus</h3>
+        <p style="color:var(--muted); font-size:13px;">Copri una free bet già ricevuta dal bookmaker (non sono soldi tuoi): il calcolatore trova la puntata in banca che estrae il massimo valore possibile dal bonus (di solito 70-80%).</p>
       </div>
     </div>
 
     <div class="card">
-      <h2>🎯 Punta/Punta (arbitraggio) a 2 o 3 esiti</h2>
+      <h2>🎯 Calcolatore Punta/Punta</h2>
       <p style="color:var(--muted); font-size:13px; line-height:1.6; margin-top:0;">
         Copre tutti gli esiti di uno stesso mercato (es. 1-X-2, oppure i due lati di un mercato a 2 vie)
-        con puntate reali su bookmaker diversi, usando le quote migliori disponibili. Se la somma delle
-        probabilità implicite (1/quota) è sotto il 100%, il profitto è garantito qualunque sia il risultato —
-        anche senza bonus o exchange di mezzo.
+        con puntate su bookmaker diversi, invece di usare un exchange — utile quando l'exchange non
+        copre quel mercato o offre quote peggiori.
       </p>
+
+      <div class="mode-selector" id="ppModeSelector">
+        <label class="mode-option active"><input type="radio" name="ppMode" value="qualificante" checked onchange="onPpModeChange()"><span>Qualificante</span></label>
+        <label class="mode-option"><input type="radio" name="ppMode" value="riskfree" onchange="onPpModeChange()"><span>Risk Free</span></label>
+        <label class="mode-option"><input type="radio" name="ppMode" value="bonus" onchange="onPpModeChange()"><span>Bonus</span></label>
+      </div>
+      <p class="field-hint" id="ppModeHint" style="margin-top:8px;"></p>
+
       <label>Numero di esiti</label>
-      <select id="arbOutcomes" onchange="toggleArbThirdOutcome()">
+      <select id="ppOutcomes" onchange="togglePpThirdOutcome()">
         <option value="2">2 esiti (es. Tennis, mercati a 2 vie)</option>
         <option value="3">3 esiti (es. 1-X-2 calcio)</option>
       </select>
-      <div class="row">
+
+      <div class="row" id="ppTotalStakeRow">
         <div>
           <label>Stake totale da distribuire (€)</label>
-          <input type="number" id="arbStake" value="100" step="0.01" min="0">
+          <input type="number" id="ppTotalStake" value="100" step="0.01" min="0">
         </div>
       </div>
+
+      <div class="row" id="ppPrimaryValueRow" style="display:none;">
+        <div>
+          <label id="ppPrimaryValueLabel">Importo puntata, esito 1 (€)</label>
+          <input type="number" id="ppPrimaryValue" value="20" step="0.01" min="0">
+        </div>
+        <div id="ppRefundCol" style="display:none;">
+          <label>Rimborso se perde (€)</label>
+          <input type="number" id="ppRefund" value="20" step="0.01" min="0">
+        </div>
+      </div>
+
+      <div id="ppBonusTypeRow" style="display:none;">
+        <label>Questo bonus, se vinci, restituisce anche la puntata?</label>
+        <select id="ppBonusType">
+          <option value="snr">No, solo la vincita (il caso più comune)</option>
+          <option value="sr">Sì, torna anche la puntata</option>
+        </select>
+      </div>
+
       <div class="row">
         <div>
-          <label>Bookmaker esito 1</label>
-          <input type="text" id="arbBook1" placeholder="es. Sisal">
+          <label id="ppBook1Label">Bookmaker esito 1</label>
+          <input type="text" id="ppBook1" placeholder="es. Sisal">
         </div>
         <div>
           <label>Quota esito 1</label>
-          <input type="number" id="arbOdds1" value="2.10" step="0.01" min="1.01">
+          <input type="number" id="ppOdds1" value="2.10" step="0.01" min="1.01">
         </div>
       </div>
       <div class="row">
         <div>
           <label>Bookmaker esito 2</label>
-          <input type="text" id="arbBook2" placeholder="es. Snai">
+          <input type="text" id="ppBook2" placeholder="es. Snai">
         </div>
         <div>
           <label>Quota esito 2</label>
-          <input type="number" id="arbOdds2" value="4.20" step="0.01" min="1.01">
+          <input type="number" id="ppOdds2" value="4.20" step="0.01" min="1.01">
         </div>
       </div>
-      <div class="row" id="arbRow3">
+      <div class="row" id="ppRow3">
         <div>
           <label>Bookmaker esito 3</label>
-          <input type="text" id="arbBook3" placeholder="es. Goldbet">
+          <input type="text" id="ppBook3" placeholder="es. Goldbet">
         </div>
         <div>
           <label>Quota esito 3</label>
-          <input type="number" id="arbOdds3" value="4.00" step="0.01" min="1.01">
+          <input type="number" id="ppOdds3" value="4.00" step="0.01" min="1.01">
         </div>
       </div>
       <div class="form-actions">
-        <button class="primary" onclick="runArbCalc()">Calcola</button>
-        <button class="ghost" onclick="sendArbToTracker()">➕ Aggiungi al tracker</button>
+        <button class="primary" onclick="runPPCalc()">Calcola</button>
+        <button class="ghost" onclick="sendPPToTracker()">➕ Aggiungi al tracker</button>
       </div>
-      <div class="result-box" id="arbResult"></div>
-    </div>
-
-    <div class="card">
-      <h2>🎁 Freebet a 2 o 3 esiti (copertura diretta su altri bookmaker)</h2>
-      <p style="color:var(--muted); font-size:13px; line-height:1.6; margin-top:0;">
-        Generalizza il back/lay a mercati con più di 2 esiti (es. 1-X-2): invece di coprire la free bet su
-        un exchange, la copri con puntate reali sugli altri esiti dello stesso mercato presso altri
-        bookmaker. Utile quando l'exchange non copre quel mercato o offre quote peggiori.
-      </p>
-      <label>Numero di esiti</label>
-      <select id="fbOutcomes" onchange="toggleFbThirdOutcome()">
-        <option value="2">2 esiti</option>
-        <option value="3">3 esiti</option>
-      </select>
-      <label>Tipo di free bet</label>
-      <select id="fbType">
-        <option value="snr">Stake Not Returned (comune)</option>
-        <option value="sr">Stake Returned</option>
-      </select>
-      <div class="row">
-        <div>
-          <label>Bookmaker free bet (esito 1)</label>
-          <input type="text" id="fbBook1" placeholder="es. Bet365">
-        </div>
-        <div>
-          <label>Valore free bet (€)</label>
-          <input type="number" id="fbValue" value="20" step="0.01" min="0">
-        </div>
-        <div>
-          <label>Quota esito 1 (free bet)</label>
-          <input type="number" id="fbOdds1" value="3.00" step="0.01" min="1.01">
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label>Bookmaker esito 2 (copertura reale)</label>
-          <input type="text" id="fbBook2" placeholder="es. Sisal">
-        </div>
-        <div>
-          <label>Quota esito 2</label>
-          <input type="number" id="fbOdds2" value="1.80" step="0.01" min="1.01">
-        </div>
-      </div>
-      <div class="row" id="fbRow3">
-        <div>
-          <label>Bookmaker esito 3 (copertura reale)</label>
-          <input type="text" id="fbBook3" placeholder="es. Snai">
-        </div>
-        <div>
-          <label>Quota esito 3</label>
-          <input type="number" id="fbOdds3" value="5.00" step="0.01" min="1.01">
-        </div>
-      </div>
-      <div class="form-actions">
-        <button class="primary" onclick="runFbCalc()">Calcola</button>
-        <button class="ghost" onclick="sendFbToTracker()">➕ Aggiungi al tracker</button>
-      </div>
-      <div class="result-box" id="fbResult"></div>
-      <p style="color:var(--muted); font-size:12px; margin:10px 0 0;">
-        Stake Not Returned: se vince l'esito 1 incassi solo la vincita (quota-1)×valore, lo stake non torna.
-        Stake Returned: trattata come una puntata reale a tutti gli effetti (stesso criterio usato nel
-        calcolatore Back/Lay qui sopra) — estrae meno valore della SNR perché va coperto anche il rimborso
-        dello stake.
-      </p>
+      <div id="ppResult"></div>
     </div>
   </div>
 
@@ -314,6 +320,7 @@
           <label>Tipo</label>
           <select id="betType">
             <option value="Qualifying">Qualifying</option>
+            <option value="Risk Free">Risk Free</option>
             <option value="Free bet SNR">Free bet SNR</option>
             <option value="Free bet SR">Free bet SR</option>
             <option value="Reload">Reload/Bonus</option>
@@ -757,203 +764,293 @@ let accounts = load(STORE_KEYS.accounts);
 const fmt = n => (Math.round(n*100)/100).toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:2});
 const euro = n => (n>=0?'+':'') + '€' + fmt(n);
 
-/* ===================== CALCOLATORE ===================== */
-let lastCalc = null;
+/* ===================== CALCOLATORE PUNTA/BANCA (3 modalità) ===================== */
+// Le 3 modalità condividono la stessa idea di fondo: puntare sul bookmaker e
+// coprire con una puntata in banca (exchange) dimensionata per ottenere lo
+// stesso risultato sia che vinca la puntata sia che vinca la banca. Cambia
+// solo cosa succede quando la puntata sul bookmaker PERDE:
+//  - Qualificante: perdi lo stake, punto e basta (nessun rimborso).
+//  - Risk Free: perdi lo stake ma il bookmaker te ne rimborsa una parte (o
+//    tutto), in bonus o in contanti — l'importo lo indichi tu.
+//  - Bonus: non stai rischiando soldi tuoi (free bet), quindi se perdi non
+//    perdi nulla; se vinci incassi solo la vincita (o anche lo stake, se il
+//    bonus lo prevede).
+let lastPB = null;
 
-function runCalc(){
-  const type = document.getElementById('calcType').value;
-  const backStake = parseFloat(document.getElementById('backStake').value) || 0;
-  const backOdds = parseFloat(document.getElementById('backOdds').value) || 0;
-  const layOdds = parseFloat(document.getElementById('layOdds').value) || 0;
-  const commission = (parseFloat(document.getElementById('commission').value) || 0) / 100;
+const PB_MODE_HINTS = {
+  qualificante: 'Punti soldi veri, di solito per sbloccare un bonus di benvenuto: piccola perdita attesa pari al costo di copertura.',
+  riskfree: 'Punti soldi veri: se perdi, il bookmaker ti rimborsa (in bonus o contanti) fino all\'importo che indichi qui sotto.',
+  bonus: 'Copri una free bet già ricevuta dal bookmaker (non sono soldi tuoi).',
+};
 
-  if(backOdds <= 1 || layOdds <= 1){
-    document.getElementById('calcResult').innerHTML = '<div class="empty">Inserisci quote valide (> 1.00).</div>';
+function onPbModeChange(){
+  const mode = document.querySelector('input[name="pbMode"]:checked').value;
+  document.querySelectorAll('#pbModeSelector .mode-option').forEach(opt => {
+    opt.classList.toggle('active', opt.querySelector('input').checked);
+  });
+  document.getElementById('pbModeHint').textContent = PB_MODE_HINTS[mode] || '';
+  document.getElementById('pbRefundRow').style.display = mode === 'riskfree' ? 'flex' : 'none';
+  document.getElementById('pbBonusTypeRow').style.display = mode === 'bonus' ? 'block' : 'none';
+  document.getElementById('pbStakeLabel').textContent = mode === 'bonus' ? 'Valore della free bet (€)' : 'Quanto punti sul bookmaker (€)';
+  runPBCalc();
+}
+
+function runPBCalc(){
+  const mode = document.querySelector('input[name="pbMode"]:checked').value;
+  const stake = parseFloat(document.getElementById('pbStake').value) || 0;
+  const odds = parseFloat(document.getElementById('pbOdds').value) || 0;
+  const layOdds = parseFloat(document.getElementById('pbLayOdds').value) || 0;
+  const commission = (parseFloat(document.getElementById('pbCommission').value) || 0) / 100;
+  const refund = parseFloat(document.getElementById('pbRefund').value) || 0;
+  const bonusType = document.getElementById('pbBonusType').value; // 'snr' | 'sr'
+
+  if(odds <= 1 || layOdds <= 1 || stake <= 0){
+    document.getElementById('pbResult').innerHTML = '<div class="empty">Inserisci una puntata e quote valide (> 1.00).</div>';
     return;
   }
 
-  let layStake, liability, profitIfWins, profitIfLoses, freeBetValue = 0;
+  let layStake, liability, profitIfWins, profitIfLoses, pctValue = null, pctLabel = null;
 
-  if(type === 'qualifying' || type === 'freebet-sr'){
-    // Standard matched bet: lay stake to equalize outcomes
-    layStake = (backStake * backOdds) / (layOdds - commission);
+  if(mode === 'qualificante'){
+    layStake = (stake * odds) / (layOdds - commission);
     liability = layStake * (layOdds - 1);
-    profitIfWins = (backStake * (backOdds - 1)) - liability;
-    profitIfLoses = layStake * (1 - commission) - backStake;
-  } else {
-    // Free bet SNR: optimal lay stake to extract max value (stake not returned)
-    freeBetValue = backStake;
-    layStake = (backStake * (backOdds - 1)) / (layOdds - commission);
+    profitIfWins = (stake * (odds - 1)) - liability;
+    profitIfLoses = layStake * (1 - commission) - stake;
+  } else if(mode === 'riskfree'){
+    // Derivazione: layStake tale per cui il profitto e' identico sia che
+    // vinca la puntata sia che vinca la banca (con il rimborso incluso nel
+    // secondo caso). Con rimborso=0 coincide esattamente con "Qualificante";
+    // con rimborso=stake coincide esattamente con "Bonus SNR" — coerenza
+    // verificata algebricamente.
+    layStake = (stake * odds - refund) / (layOdds - commission);
     liability = layStake * (layOdds - 1);
-    profitIfWins = (backStake * (backOdds - 1)) - liability;
-    profitIfLoses = layStake * (1 - commission);
+    profitIfWins = (stake * (odds - 1)) - liability;
+    profitIfLoses = layStake * (1 - commission) - stake + refund;
+    pctValue = refund > 0 ? (Math.min(profitIfWins, profitIfLoses) / refund) * 100 : null;
+    pctLabel = 'Recuperi dal rimborso';
+  } else { // bonus
+    if(bonusType === 'sr'){
+      layStake = (stake * odds) / (layOdds - commission);
+      liability = layStake * (layOdds - 1);
+      profitIfWins = (stake * odds) - liability;
+      profitIfLoses = layStake * (1 - commission);
+    } else {
+      layStake = (stake * (odds - 1)) / (layOdds - commission);
+      liability = layStake * (layOdds - 1);
+      profitIfWins = (stake * (odds - 1)) - liability;
+      profitIfLoses = layStake * (1 - commission);
+    }
+    pctValue = stake > 0 ? (Math.min(profitIfWins, profitIfLoses) / stake) * 100 : null;
+    pctLabel = 'Tasso di estrazione del bonus';
   }
 
   const guaranteed = Math.min(profitIfWins, profitIfLoses);
-  const extractionRate = freeBetValue > 0 ? (guaranteed / freeBetValue) * 100 : null;
-
-  lastCalc = {type, backStake, backOdds, layOdds, commission, layStake, liability, profitIfWins, profitIfLoses, guaranteed};
+  lastPB = {mode, stake, odds, layOdds, commission, refund, bonusType, layStake, liability, profitIfWins, profitIfLoses, guaranteed};
 
   const cls = guaranteed >= 0 ? 'good' : 'bad';
-  document.getElementById('calcResult').innerHTML = `
-    <div class="result-row"><span class="label">Puntata Lay consigliata</span><span class="val">€${fmt(layStake)}</span></div>
-    <div class="result-row"><span class="label">Liability (esposizione)</span><span class="val">€${fmt(liability)}</span></div>
-    <div class="result-row"><span class="label">Se vince il Back</span><span class="val">${euro(profitIfWins)}</span></div>
-    <div class="result-row"><span class="label">Se vince il Lay</span><span class="val">${euro(profitIfLoses)}</span></div>
-    <div class="result-row"><span class="label">Risultato garantito</span><span class="val ${cls}">${euro(guaranteed)}</span></div>
-    ${extractionRate!==null ? `<div class="result-row"><span class="label">Tasso di estrazione del bonus</span><span class="val ${extractionRate>=60?'good':'bad'}">${fmt(extractionRate)}%</span></div>` : ''}
+  const stakeLabel = mode === 'bonus' ? 'FREE BET' : 'PUNTA';
+  document.getElementById('pbResult').innerHTML = `
+    <div class="calc-result-visual">
+      <div class="result-bar result-bar-punta">
+        <span>${stakeLabel}</span> <b>€${fmt(stake)}</b> <span>a quota</span> <b>${fmt(odds)}</b>
+      </div>
+      <div class="result-bar result-bar-banca">
+        <div><span>BANCA</span> <b>€${fmt(layStake)}</b> <span>a quota</span> <b>${fmt(layOdds)}</b></div>
+        <div class="result-bar-sub">Responsabilità: €${fmt(liability)}</div>
+      </div>
+      <div class="result-summary">
+        <div class="result-summary-value ${cls}">${euro(guaranteed)}</div>
+        <div class="result-summary-label">Risultato garantito, qualunque sia l'esito</div>
+        ${pctValue !== null ? `<div class="result-summary-sub">${pctLabel}: ${fmt(pctValue)}%</div>` : ''}
+      </div>
+    </div>
+    <div class="result-row"><span class="label">Se vince la puntata sul bookmaker</span><span class="val">${euro(profitIfWins)}</span></div>
+    <div class="result-row"><span class="label">Se vince la puntata in banca</span><span class="val">${euro(profitIfLoses)}</span></div>
   `;
 }
 
-function sendCalcToTracker(){
-  if(!lastCalc){ runCalc(); if(!lastCalc) return; }
-  document.getElementById('betStake').value = lastCalc.backStake;
-  document.getElementById('betProfit').value = fmt(lastCalc.guaranteed);
+function sendPBToTracker(){
+  if(!lastPB){ runPBCalc(); if(!lastPB) return; }
+  document.getElementById('betStake').value = fmt(lastPB.stake);
+  document.getElementById('betProfit').value = fmt(lastPB.guaranteed);
   document.getElementById('betType').value =
-    lastCalc.type === 'qualifying' ? 'Qualifying' :
-    lastCalc.type === 'freebet-snr' ? 'Free bet SNR' : 'Free bet SR';
+    lastPB.mode === 'qualificante' ? 'Qualifying' :
+    lastPB.mode === 'riskfree' ? 'Risk Free' :
+    (lastPB.bonusType === 'sr' ? 'Free bet SR' : 'Free bet SNR');
   document.getElementById('betDate').value = new Date().toISOString().slice(0,10);
   document.querySelector('.tab-btn[data-tab="tracker"]').click();
 }
 
-runCalc();
+onPbModeChange();
 
-/* ===================== PUNTA/PUNTA (ARBITRAGGIO) N ESITI ===================== */
-function toggleArbThirdOutcome(){
-  const n = parseInt(document.getElementById('arbOutcomes').value, 10);
-  document.getElementById('arbRow3').style.display = n === 3 ? 'flex' : 'none';
+/* ===================== CALCOLATORE PUNTA/PUNTA (3 modalità, 2 o 3 esiti) ===================== */
+// Qualificante: distribuisce uno stake totale su tutti gli esiti in proporzione
+// alle quote (arbitraggio "classico", nessun esito e' speciale).
+// Risk Free / Bonus: l'esito 1 ha un valore "principale" (puntata reale con
+// rimborso se perde, oppure free bet), gli altri esiti sono coperture reali
+// dimensionate per garantire lo stesso risultato in ogni caso — stessa logica
+// del calcolatore Punta/Banca qui sopra, generalizzata a N esiti.
+let lastPP = null;
+
+const PP_MODE_HINTS = {
+  qualificante: 'Copri tutti gli esiti con soldi veri, in proporzione alle quote: se la somma delle probabilità implicite è sotto il 100%, il profitto è garantito qualunque sia il risultato.',
+  riskfree: 'Punti soldi veri sull\'esito 1: se perde, il bookmaker ti rimborsa fino all\'importo che indichi. Copri gli altri esiti con puntate reali su altri bookmaker.',
+  bonus: 'Copri una free bet già ricevuta sull\'esito 1 (non sono soldi tuoi) con puntate reali sugli altri esiti presso altri bookmaker.',
+};
+
+function onPpModeChange(){
+  const mode = document.querySelector('input[name="ppMode"]:checked').value;
+  document.querySelectorAll('#ppModeSelector .mode-option').forEach(opt => {
+    opt.classList.toggle('active', opt.querySelector('input').checked);
+  });
+  document.getElementById('ppModeHint').textContent = PP_MODE_HINTS[mode] || '';
+  const isQualificante = mode === 'qualificante';
+  document.getElementById('ppTotalStakeRow').style.display = isQualificante ? 'flex' : 'none';
+  document.getElementById('ppPrimaryValueRow').style.display = isQualificante ? 'none' : 'flex';
+  document.getElementById('ppRefundCol').style.display = mode === 'riskfree' ? 'block' : 'none';
+  document.getElementById('ppBonusTypeRow').style.display = mode === 'bonus' ? 'block' : 'none';
+  document.getElementById('ppPrimaryValueLabel').textContent = mode === 'bonus' ? 'Valore della free bet, esito 1 (€)' : 'Importo puntata, esito 1 (€)';
+  document.getElementById('ppBook1Label').textContent =
+    isQualificante ? 'Bookmaker esito 1' :
+    mode === 'riskfree' ? 'Bookmaker esito 1 (puntata reale)' : 'Bookmaker esito 1 (free bet)';
+  runPPCalc();
 }
 
-let lastArb = null;
+function togglePpThirdOutcome(){
+  const n = parseInt(document.getElementById('ppOutcomes').value, 10);
+  document.getElementById('ppRow3').style.display = n === 3 ? 'flex' : 'none';
+  runPPCalc();
+}
 
-function runArbCalc(){
-  const n = parseInt(document.getElementById('arbOutcomes').value, 10);
-  const stakeTot = parseFloat(document.getElementById('arbStake').value) || 0;
+function runPPCalc(){
+  const mode = document.querySelector('input[name="ppMode"]:checked').value;
+  const n = parseInt(document.getElementById('ppOutcomes').value, 10);
+
   const odds = [
-    parseFloat(document.getElementById('arbOdds1').value) || 0,
-    parseFloat(document.getElementById('arbOdds2').value) || 0,
+    parseFloat(document.getElementById('ppOdds1').value) || 0,
+    parseFloat(document.getElementById('ppOdds2').value) || 0,
   ];
   const books = [
-    document.getElementById('arbBook1').value.trim() || 'Esito 1',
-    document.getElementById('arbBook2').value.trim() || 'Esito 2',
+    document.getElementById('ppBook1').value.trim() || 'Esito 1',
+    document.getElementById('ppBook2').value.trim() || 'Esito 2',
   ];
   if(n === 3){
-    odds.push(parseFloat(document.getElementById('arbOdds3').value) || 0);
-    books.push(document.getElementById('arbBook3').value.trim() || 'Esito 3');
+    odds.push(parseFloat(document.getElementById('ppOdds3').value) || 0);
+    books.push(document.getElementById('ppBook3').value.trim() || 'Esito 3');
   }
 
-  if(odds.some(o => o <= 1) || stakeTot <= 0){
-    document.getElementById('arbResult').innerHTML = '<div class="empty">Inserisci uno stake e quote validi (> 1.00) per tutti gli esiti.</div>';
+  if(odds.some(o => o <= 1)){
+    document.getElementById('ppResult').innerHTML = '<div class="empty">Inserisci quote valide (> 1.00) per tutti gli esiti.</div>';
     return;
   }
 
-  // Somma delle probabilita' implicite: se < 100% c'e' arbitraggio (profitto
-  // garantito qualunque esito vinca). Lo stake su ciascun esito e' proporzionale
-  // all'inverso della sua quota, cosi' il payout e' identico in ogni caso.
-  const impliedSum = odds.reduce((s,o) => s + 1/o, 0);
-  const stakes = odds.map(o => stakeTot * (1/o) / impliedSum);
-  const payout = stakeTot / impliedSum; // uguale per qualunque esito vinca
-  const profit = payout - stakeTot;
-  const roiPct = (1/impliedSum - 1) * 100;
+  if(mode === 'qualificante'){
+    const stakeTot = parseFloat(document.getElementById('ppTotalStake').value) || 0;
+    if(stakeTot <= 0){
+      document.getElementById('ppResult').innerHTML = '<div class="empty">Inserisci uno stake totale valido.</div>';
+      return;
+    }
+    // Somma delle probabilita' implicite: se < 100% c'e' arbitraggio. Lo stake
+    // su ciascun esito e' proporzionale all'inverso della sua quota, cosi' il
+    // payout e' identico in ogni caso.
+    const impliedSum = odds.reduce((s,o) => s + 1/o, 0);
+    const stakes = odds.map(o => stakeTot * (1/o) / impliedSum);
+    const payout = stakeTot / impliedSum;
+    const guaranteed = payout - stakeTot;
 
-  lastArb = {n, stakeTot, odds, books, stakes, payout, profit, roiPct};
+    lastPP = {mode, n, odds, books, stakes, guaranteed, stakeTot};
 
-  const cls = profit >= 0 ? 'good' : 'bad';
-  const rows = stakes.map((s,i) => `<div class="result-row"><span class="label">Puntata su ${books[i]} (quota ${fmt(odds[i])})</span><span class="val">€${fmt(s)}</span></div>`).join('');
-  document.getElementById('arbResult').innerHTML = `
-    ${rows}
-    <div class="result-row"><span class="label">Somma probabilità implicite</span><span class="val ${impliedSum < 1 ? 'good' : 'bad'}">${fmt(impliedSum*100)}%</span></div>
-    <div class="result-row"><span class="label">Payout garantito (qualunque esito)</span><span class="val">€${fmt(payout)}</span></div>
-    <div class="result-row"><span class="label">Profitto garantito</span><span class="val ${cls}">${euro(profit)}</span></div>
-    <div class="result-row"><span class="label">ROI sullo stake totale</span><span class="val ${cls}">${fmt(roiPct)}%</span></div>
-    ${impliedSum >= 1 ? '<div class="result-row"><span class="label"></span><span class="val bad">Nessun arbitraggio: la somma delle probabilità implicite è ≥ 100%, non c\'è profitto garantito con queste quote.</span></div>' : ''}
-  `;
-}
-
-function sendArbToTracker(){
-  if(!lastArb){ runArbCalc(); if(!lastArb) return; }
-  document.getElementById('betStake').value = fmt(lastArb.stakeTot);
-  document.getElementById('betProfit').value = fmt(lastArb.profit);
-  document.getElementById('betType').value = 'Altro';
-  document.getElementById('betBook').value = lastArb.books.join(' / ');
-  document.getElementById('betNote').value = `Punta/Punta ${lastArb.n} esiti: ${lastArb.books.map((b,i)=>`${b}@${fmt(lastArb.odds[i])}`).join(', ')}`;
-  document.getElementById('betDate').value = new Date().toISOString().slice(0,10);
-  document.querySelector('.tab-btn[data-tab="tracker"]').click();
-}
-
-runArbCalc();
-
-/* ===================== FREEBET A N ESITI (copertura diretta) ===================== */
-function toggleFbThirdOutcome(){
-  const n = parseInt(document.getElementById('fbOutcomes').value, 10);
-  document.getElementById('fbRow3').style.display = n === 3 ? 'flex' : 'none';
-}
-
-let lastFb = null;
-
-function runFbCalc(){
-  const n = parseInt(document.getElementById('fbOutcomes').value, 10);
-  const type = document.getElementById('fbType').value; // 'snr' | 'sr'
-  const freeBetValue = parseFloat(document.getElementById('fbValue').value) || 0;
-  const o1 = parseFloat(document.getElementById('fbOdds1').value) || 0;
-  const book1 = document.getElementById('fbBook1').value.trim() || 'Esito 1 (free bet)';
-
-  const coverOdds = [parseFloat(document.getElementById('fbOdds2').value) || 0];
-  const coverBooks = [document.getElementById('fbBook2').value.trim() || 'Esito 2'];
-  if(n === 3){
-    coverOdds.push(parseFloat(document.getElementById('fbOdds3').value) || 0);
-    coverBooks.push(document.getElementById('fbBook3').value.trim() || 'Esito 3');
-  }
-
-  if(o1 <= 1 || coverOdds.some(o => o <= 1) || freeBetValue <= 0){
-    document.getElementById('fbResult').innerHTML = '<div class="empty">Inserisci un valore di free bet e quote validi (> 1.00) per tutti gli esiti.</div>';
+    const cls = guaranteed >= 0 ? 'good' : 'bad';
+    const rows = stakes.map((s,i) => `<div class="result-bar result-bar-outcome"><span>ESITO ${i+1} — ${books[i]}</span> <b>€${fmt(s)}</b> <span>a quota</span> <b>${fmt(odds[i])}</b></div>`).join('');
+    document.getElementById('ppResult').innerHTML = `
+      <div class="calc-result-visual">
+        ${rows}
+        <div class="result-summary">
+          <div class="result-summary-value ${cls}">${euro(guaranteed)}</div>
+          <div class="result-summary-label">Risultato garantito, qualunque sia l'esito</div>
+          <div class="result-summary-sub">Somma probabilità implicite: ${fmt(impliedSum*100)}%${impliedSum>=1?' — nessun arbitraggio con queste quote':''}</div>
+        </div>
+      </div>
+    `;
     return;
   }
 
-  // Q = somma di 1/quota sugli esiti di copertura reale (tutti tranne la free bet).
-  // SNR: la free bet paga solo la vincita (quota1-1)*valore se vince, nulla se perde.
-  //   copertura_i = (quota1-1)*valore / quota_i ; profitto = (quota1-1)*valore*(1-Q)
-  // SR: trattata come una puntata reale (stesso criterio del calcolatore Back/Lay
-  //   sopra per "qualifying"/SR): paga l'intero quota1*valore se vince, e la sua
-  //   perdita "costa" comunque il valore nominale se perde.
-  //   copertura_i = quota1*valore / quota_i ; profitto = valore*[(quota1-1) - Q*quota1]
+  // Risk Free / Bonus
+  const primaryValue = parseFloat(document.getElementById('ppPrimaryValue').value) || 0;
+  const o1 = odds[0];
+  const coverOdds = odds.slice(1);
+  const coverBooks = books.slice(1);
+
+  if(primaryValue <= 0){
+    document.getElementById('ppResult').innerHTML = '<div class="empty">Inserisci un importo valido per la puntata/free bet dell\'esito 1.</div>';
+    return;
+  }
+
   const Q = coverOdds.reduce((s,o) => s + 1/o, 0);
-  let coverStakes, profit;
-  if(type === 'sr'){
-    coverStakes = coverOdds.map(o => (freeBetValue * o1) / o);
-    profit = freeBetValue * ((o1 - 1) - Q * o1);
-  } else {
-    coverStakes = coverOdds.map(o => (freeBetValue * (o1 - 1)) / o);
-    profit = freeBetValue * (o1 - 1) * (1 - Q);
+  let T, guaranteed, pctValue = null, pctLabel = null, primaryLabel;
+
+  if(mode === 'riskfree'){
+    const refund = parseFloat(document.getElementById('ppRefund').value) || 0;
+    // Stessa derivazione del Punta/Banca Risk Free, generalizzata a N esiti:
+    // T e' il "payout target" costante su ogni copertura vincente.
+    T = primaryValue * o1 - refund;
+    guaranteed = primaryValue * (o1 - 1) - T * Q;
+    pctValue = refund > 0 ? (guaranteed / refund) * 100 : null;
+    pctLabel = 'Recuperi dal rimborso';
+    primaryLabel = 'PUNTA';
+    lastPP = {mode, n, odds, books, primaryValue, refund, guaranteed};
+  } else { // bonus
+    const bonusType = document.getElementById('ppBonusType').value;
+    if(bonusType === 'sr'){
+      T = primaryValue * o1;
+      guaranteed = primaryValue * o1 * (1 - Q);
+    } else {
+      T = primaryValue * (o1 - 1);
+      guaranteed = primaryValue * (o1 - 1) * (1 - Q);
+    }
+    pctValue = primaryValue > 0 ? (guaranteed / primaryValue) * 100 : null;
+    pctLabel = 'Tasso di estrazione del bonus';
+    primaryLabel = 'FREE BET';
+    lastPP = {mode, n, odds, books, primaryValue, bonusType, guaranteed};
   }
-  const totalCoverStake = coverStakes.reduce((a,b)=>a+b, 0);
-  const extractionRate = freeBetValue > 0 ? (profit / freeBetValue) * 100 : null;
 
-  lastFb = {n, type, freeBetValue, o1, book1, coverOdds, coverBooks, coverStakes, profit, totalCoverStake};
+  const coverStakes = coverOdds.map(o => T / o);
+  lastPP.stakes = [primaryValue, ...coverStakes];
 
-  const cls = profit >= 0 ? 'good' : 'bad';
-  const rows = coverStakes.map((s,i) => `<div class="result-row"><span class="label">Copertura su ${coverBooks[i]} (quota ${fmt(coverOdds[i])})</span><span class="val">€${fmt(s)}</span></div>`).join('');
-  document.getElementById('fbResult').innerHTML = `
-    <div class="result-row"><span class="label">Free bet su ${book1} (quota ${fmt(o1)})</span><span class="val">€${fmt(freeBetValue)} (${type==='sr'?'SR':'SNR'})</span></div>
-    ${rows}
-    <div class="result-row"><span class="label">Stake reale totale da coprire</span><span class="val">€${fmt(totalCoverStake)}</span></div>
-    <div class="result-row"><span class="label">Risultato garantito (qualunque esito)</span><span class="val ${cls}">${euro(profit)}</span></div>
-    ${extractionRate!==null ? `<div class="result-row"><span class="label">Tasso di estrazione della free bet</span><span class="val ${extractionRate>=60?'good':'bad'}">${fmt(extractionRate)}%</span></div>` : ''}
+  const cls = guaranteed >= 0 ? 'good' : 'bad';
+  const coverRows = coverStakes.map((s,i) => `<div class="result-bar result-bar-outcome"><span>COPERTURA — ${coverBooks[i]}</span> <b>€${fmt(s)}</b> <span>a quota</span> <b>${fmt(coverOdds[i])}</b></div>`).join('');
+
+  document.getElementById('ppResult').innerHTML = `
+    <div class="calc-result-visual">
+      <div class="result-bar result-bar-punta">
+        <span>${primaryLabel} — ${books[0]}</span> <b>€${fmt(primaryValue)}</b> <span>a quota</span> <b>${fmt(o1)}</b>
+      </div>
+      ${coverRows}
+      <div class="result-summary">
+        <div class="result-summary-value ${cls}">${euro(guaranteed)}</div>
+        <div class="result-summary-label">Risultato garantito, qualunque sia l'esito</div>
+        ${pctValue !== null ? `<div class="result-summary-sub">${pctLabel}: ${fmt(pctValue)}%</div>` : ''}
+      </div>
+    </div>
   `;
 }
 
-function sendFbToTracker(){
-  if(!lastFb){ runFbCalc(); if(!lastFb) return; }
-  document.getElementById('betStake').value = fmt(lastFb.freeBetValue);
-  document.getElementById('betProfit').value = fmt(lastFb.profit);
-  document.getElementById('betType').value = lastFb.type === 'sr' ? 'Free bet SR' : 'Free bet SNR';
-  document.getElementById('betBook').value = lastFb.book1;
-  document.getElementById('betNote').value = `Freebet ${lastFb.n} esiti, copertura: ${lastFb.coverBooks.map((b,i)=>`${b}@${fmt(lastFb.coverOdds[i])}`).join(', ')}`;
+function sendPPToTracker(){
+  if(!lastPP){ runPPCalc(); if(!lastPP) return; }
+  const totalStake = lastPP.mode === 'qualificante' ? lastPP.stakeTot : lastPP.stakes.reduce((a,b)=>a+b,0);
+  document.getElementById('betStake').value = fmt(totalStake);
+  document.getElementById('betProfit').value = fmt(lastPP.guaranteed);
+  document.getElementById('betType').value =
+    lastPP.mode === 'qualificante' ? 'Altro' :
+    lastPP.mode === 'riskfree' ? 'Risk Free' :
+    (lastPP.bonusType === 'sr' ? 'Free bet SR' : 'Free bet SNR');
+  document.getElementById('betBook').value = lastPP.books.join(' / ');
+  document.getElementById('betNote').value = `Punta/Punta ${lastPP.n} esiti (${lastPP.mode}): ${lastPP.books.map((b,i)=>`${b}@${fmt(lastPP.odds[i])}`).join(', ')}`;
   document.getElementById('betDate').value = new Date().toISOString().slice(0,10);
   document.querySelector('.tab-btn[data-tab="tracker"]').click();
 }
 
-runFbCalc();
+onPpModeChange();
 
 /* ===================== TRACKER ===================== */
 function addBet(){
