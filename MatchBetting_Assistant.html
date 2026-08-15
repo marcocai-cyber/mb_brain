@@ -368,9 +368,11 @@
       </div>
       <p id="autoImportLastUpdate" style="color:var(--muted); font-size:12px; margin:10px 0 0;"></p>
       <p style="color:var(--muted); font-size:12px; margin:6px 0 0;">
-        Al primo click ti verrà chiesto di selezionare <code>promozioni.json</code> una volta sola: da quel
-        momento "Aggiorna" lo rilegge da solo, e l'app lo aggiorna automaticamente anche ogni volta che la
-        apri (senza bisogno di cliccare nulla). Funziona su Chrome/Edge; su altri browser usa
+        Se apri l'app online (es. da telefono), "Aggiorna" e l'aggiornamento automatico all'apertura
+        leggono <code>promozioni.json</code> direttamente dal sito — funziona su qualsiasi browser,
+        desktop o mobile, senza permessi da concedere. Se invece apri il file <code>.html</code>
+        direttamente dal PC, al primo click ti verrà chiesto di selezionare <code>promozioni.json</code>
+        una volta sola (funziona solo su Chrome/Edge desktop); su altri browser in locale usa
         l'importazione manuale qui sotto.
       </p>
       <details style="margin-top:10px;">
@@ -1161,15 +1163,53 @@ async function readAndMergeFromHandle(handle){
   return mergeImportedOffers(data);
 }
 
+/* Quando l'app è aperta online (http/https, es. GitHub Pages) promozioni.json
+   è pubblicato nella stessa origine: si può leggerlo con un semplice fetch,
+   che funziona su QUALSIASI browser (incluso mobile), senza chiedere nessun
+   permesso. Non serve la File System Access API in questo caso, che infatti
+   su smartphone non è quasi mai disponibile. cache:'no-store' + querystring
+   con timestamp evitano che il browser mostri una versione vecchia in cache
+   invece dell'ultimo file pubblicato dallo scraper. */
+function isServedOverNetwork(){
+  return location.protocol === 'http:' || location.protocol === 'https:';
+}
+async function fetchPromoJson(){
+  const url = 'promozioni.json?t=' + Date.now();
+  const resp = await fetch(url, {cache: 'no-store'});
+  if(!resp.ok) throw new Error(`impossibile scaricare promozioni.json (HTTP ${resp.status})`);
+  let data;
+  try{ data = await resp.json(); }
+  catch(e){ throw new Error('promozioni.json non è un JSON leggibile.'); }
+  return mergeImportedOffers(data);
+}
+
 async function refreshOffersAuto(){
   const statusEl = document.getElementById('autoImportStatus');
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Aggiornamento in corso...';
+
+  if(isServedOverNetwork()){
+    try{
+      const {added, updated} = await fetchPromoJson();
+      setLastPromoUpdate();
+      statusEl.textContent = `Aggiornato: ${added} nuove, ${updated} aggiornate.`;
+      statusEl.style.color = 'var(--accent)';
+      return;
+    }catch(err){
+      // Se il fetch online fallisce (offline, JSON non ancora pubblicato...) si
+      // prova comunque il percorso file locale sotto, per sicurezza — ma nel
+      // caso normale (app aperta online) questo ramo non viene quasi mai usato.
+      statusEl.textContent = 'Aggiornamento online non riuscito (' + err.message + ').';
+      statusEl.style.color = 'var(--danger)';
+      if(!('showOpenFilePicker' in window)) return;
+    }
+  }
+
   if(!('showOpenFilePicker' in window)){
-    statusEl.textContent = 'Il tuo browser non supporta l\'aggiornamento automatico: usa "Importazione manuale" qui sotto.';
+    statusEl.textContent = 'Il tuo browser non supporta l\'aggiornamento automatico da file locale: usa "Importazione manuale" qui sotto.';
     statusEl.style.color = 'var(--danger)';
     return;
   }
-  statusEl.style.color = 'var(--muted)';
-  statusEl.textContent = 'Aggiornamento in corso...';
   try{
     let handle = await idbGetHandle();
     if(handle){
@@ -1208,12 +1248,31 @@ async function forgetPromoFile(){
   statusEl.style.color = 'var(--muted)';
 }
 
-// Eseguito all'apertura dell'app: se un file è già stato collegato in una
-// sessione precedente e il permesso di lettura è ancora valido, lo rilegge
-// senza chiedere nulla (requestPermission richiederebbe un click dell'utente,
-// quindi qui si usa solo queryPermission, che non lo richiede).
+// Eseguito all'apertura dell'app. Se servita online (http/https): legge
+// promozioni.json con un fetch, senza bisogno di permessi (funziona anche su
+// smartphone). Se aperta come file locale: come prima, rilegge il file
+// collegato in una sessione precedente solo se il permesso è ancora valido
+// (requestPermission richiederebbe un click dell'utente, quindi qui si usa
+// solo queryPermission, che non lo richiede).
 async function silentAutoRefresh(){
   updateLastPromoLabel();
+
+  if(isServedOverNetwork()){
+    try{
+      const {added, updated} = await fetchPromoJson();
+      setLastPromoUpdate();
+      const statusEl = document.getElementById('autoImportStatus');
+      if(statusEl && (added || updated)){
+        statusEl.textContent = `Aggiornato automaticamente all'apertura: ${added} nuove, ${updated} aggiornate.`;
+        statusEl.style.color = 'var(--accent)';
+      }
+    }catch(e){
+      // silenzioso: se il JSON non è raggiungibile (offline, ecc.) l'utente se
+      // ne accorgerà comunque cliccando "Aggiorna promozioni" e vedrà l'errore.
+    }
+    return;
+  }
+
   if(!('indexedDB' in window) || !('showOpenFilePicker' in window)) return;
   try{
     const handle = await idbGetHandle();
