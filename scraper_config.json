@@ -27,10 +27,10 @@
     },
     {
       "name": "Bet365",
-      "url": "https://www.bet365.it/it/promozioni/",
+      "url": "https://www.bet365.it/",
       "card_selector": "",
       "title_selector": "",
-      "note": "Funzionava gia' con estrazione euristica (12 promo trovate)."
+      "note": "URL corretto il 2026-08-16 dopo verifica dal vivo: /it/promozioni/ ora reindirizza alla home e la sezione 'Offerte' (#/OF/) e' diventata visibile solo dopo login ('Effettua il login per visualizzare le tue offerte personalizzate'), quindi non piu' raggiungibile dallo scraper. La homepage pubblica mostra pero' ancora banner promozionali in evidenza (es. 'Bonus del 100% fino a 500 euro'): puntata li' con estrazione euristica come miglior compromesso. Copertura probabilmente parziale rispetto a prima."
     },
     {
       "name": "Goldbet",
@@ -55,10 +55,10 @@
     },
     {
       "name": "Betflag",
-      "url": "https://www.betflag.it/promozioni",
+      "url": "https://info.betflag.it/promozioni-e-bonus/",
       "card_selector": "",
       "title_selector": "",
-      "note": "Funzionava gia' con estrazione euristica (5 promo trovate)."
+      "note": "URL corretto il 2026-08-16 dopo verifica dal vivo: il vecchio www.betflag.it/promozioni ora restituisce ERRORE 404 (pagina spostata sul sottodominio info.betflag.it). Estrazione euristica, pagina verificata con contenuto reale (card .boxpromo2/.card)."
     },
     {
       "name": "William Hill",
@@ -268,9 +268,9 @@
     {
       "name": "Perlaplay",
       "url": "https://www.perlaplay.it/promo",
-      "card_selector": ".promo3Container",
-      "title_selector": ".promo3Title",
-      "note": "Aggiunto 2026-08-07, verificato dal vivo. Piattaforma propria, diversa dalle altre gia' in lista (9 promo trovate)."
+      "card_selector": ".promoCard",
+      "title_selector": ".promoCard__title",
+      "note": "Selettori corretti il 2026-08-16 dopo verifica dal vivo: il sito e' passato da '.promo3Container/.promo3Title' a '.promoCard/.promoCard__title' (carosello Swiper), causando 'nessuna promo riconosciuta'. Verificato 10 card con titoli reali (es. 'Welcome Bonus Casino Live')."
     },
     {
       "name": "Domusbet",

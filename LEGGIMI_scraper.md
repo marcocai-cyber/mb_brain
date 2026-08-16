@@ -180,6 +180,29 @@ bloccarti:
 - Nessuna di queste misure garantisce l'immunità da blocchi: restano scelte tecniche di
   buon senso, non una soluzione legale o definitiva.
 
+## Cosa fare se un bookmaker smette di funzionare ("errore di caricamento" o "nessuna promo riconosciuta")
+
+Dal 2026-08-16 lo script include due protezioni in più, aggiunte dopo aver verificato dal
+vivo (con un browser reale) perché alcuni bookmaker fallivano:
+
+- **Riprova automatica**: se un sito risponde con un errore "transitorio" (timeout,
+  `ERR_HTTP2_PROTOCOL_ERROR`, connessione resettata...), lo script riprova fino a 2 volte
+  con una pausa casuale prima di segnalarlo come fallito. Molti degli errori di rete visti
+  finora erano proprio di questo tipo: il sito rispondeva normalmente al tentativo
+  successivo.
+- **Scroll automatico della pagina**: alcuni siti (es. Sisal, Snai, PokerStars, Goldbet,
+  Lottomatica, Planetwin365) caricano le card delle promozioni solo quando entrano
+  nell'inquadratura visibile (tecnica "lazy load"): senza scorrere la pagina, lo scraper le
+  troverebbe vuote anche se i selettori configurati sono corretti. Ora lo script scorre
+  automaticamente la pagina dall'alto in basso prima di leggerne il contenuto.
+
+Se nonostante questo un bookmaker continua a dare "nessuna promo riconosciuta", lo script
+salva automaticamente una copia della pagina che ha visto in `debug_pages/<nome-bookmaker>.html`
+(un solo file per bookmaker, sovrascritto ad ogni run). Questa cartella non viene mai
+pubblicata online (è esclusa dal `.gitignore`). Se capita, puoi semplicemente incollare il
+nome del bookmaker in una conversazione con Claude e chiedere di controllare quel file: non
+serve riaprire un browser, basta il file salvato.
+
 ## Immagine, link e slot (RTP/volatilità)
 
 Ogni promozione rilevata ora include, quando disponibili:

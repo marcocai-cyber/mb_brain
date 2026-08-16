@@ -73,6 +73,23 @@ STATE_PATH = HERE / "scraper_state.json"
 GIT_DIR = HERE / ".git"
 GIT_PUSH_TIMEOUT_SEC = 30
 
+# Cartella dove viene salvato un dump HTML dell'ultima pagina non riconosciuta
+# per ogni bookmaker (sovrascritto ad ogni run, non accumula file): serve per
+# diagnosticare in un secondo momento (es. senza aprire un browser) se un
+# selettore CSS non funziona piu' perche' il sito ha cambiato struttura.
+DEBUG_DIR = HERE / "debug_pages"
+
+# Errori di rete considerati "transitori" (probabile blocco anti-bot
+# temporaneo, WAF, o hiccup di connessione): vale la pena riprovare invece di
+# arrendersi subito al primo tentativo.
+TRANSIENT_ERROR_MARKERS = [
+    "timeout", "err_http2_protocol_error", "err_connection_reset",
+    "err_connection_closed", "err_connection_refused", "err_empty_response",
+    "err_network_changed", "net::err_aborted",
+]
+FETCH_RETRIES = 2  # tentativi aggiuntivi oltre al primo, solo per errori transitori
+RETRY_DELAY_SEC = (4, 9)  # intervallo casuale di attesa tra un tentativo e l'altro
+
 MIN_SNIPPET_LEN = 20
 MAX_SNIPPET_LEN = 220
 MAX_ITEMS_PER_SITE = 12
@@ -151,14 +168,64 @@ def load_config():
         return json.load(f)
 
 
-def fetch_rendered_html(page, url, timeout_ms=25000):
-    page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
+def is_transient_error(exc):
+    msg = str(exc).lower()
+    return any(marker in msg for marker in TRANSIENT_ERROR_MARKERS)
+
+
+def scroll_through_page(page, steps=6, pause_sec=0.5):
+    """Scorre la pagina dall'alto in basso in piu' passaggi prima di leggerne
+    il contenuto. Alcuni siti (es. piattaforma Sisal/Snai/PokerStars e quella
+    Goldbet/Lottomatica/Planetwin365) caricano le card promo solo quando
+    entrano nel viewport (lazy-load/intersection observer): senza scorrere,
+    lo scraper le troverebbe vuote (placeholder "skeleton") anche se i
+    selettori CSS configurati sono corretti. Mai bloccante: se la pagina non
+    supporta lo scroll per qualche motivo, si prosegue comunque."""
     try:
-        page.wait_for_load_state("networkidle", timeout=8000)
+        for i in range(1, steps + 1):
+            page.evaluate(f"window.scrollTo(0, document.body.scrollHeight * {i} / {steps})")
+            time.sleep(pause_sec)
     except Exception:
         pass
-    time.sleep(1.5)  # margine per contenuti lazy-load
-    return page.content()
+
+
+def fetch_rendered_html(page, url, timeout_ms=25000):
+    attempt = 0
+    while True:
+        try:
+            page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
+            try:
+                page.wait_for_load_state("networkidle", timeout=8000)
+            except Exception:
+                pass
+            time.sleep(1.5)  # margine per contenuti lazy-load
+            scroll_through_page(page)
+            return page.content()
+        except Exception as e:
+            if attempt < FETCH_RETRIES and is_transient_error(e):
+                attempt += 1
+                wait_s = random.uniform(*RETRY_DELAY_SEC)
+                print(f"   [RETRY {attempt}/{FETCH_RETRIES}] errore transitorio ({str(e).splitlines()[0][:80]}), "
+                      f"riprovo tra {wait_s:.1f}s...")
+                time.sleep(wait_s)
+                continue
+            raise
+
+
+def save_debug_page(name, html):
+    """Salva l'ultimo HTML renderizzato di un bookmaker quando lo scraper non
+    riconosce nessuna promo (0 risultati sia coi selettori che con l'euristica),
+    cosi' in un secondo momento si puo' ispezionare cosa e' cambiato senza dover
+    riaprire un browser. Un solo file per bookmaker: viene sovrascritto ad ogni
+    run, quindi riflette sempre l'ultimo tentativo fallito."""
+    try:
+        DEBUG_DIR.mkdir(exist_ok=True)
+        safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", name).strip("_").lower()
+        path = DEBUG_DIR / f"{safe_name}.html"
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(html)
+    except Exception:
+        pass  # mai bloccare lo scraping per un problema di debug logging
 
 
 def extract_with_selectors(soup, card_sel, title_sel):
@@ -618,7 +685,9 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
             hrefs.append(full)
 
     if not hrefs:
-        print("   [NESSUN RISULTATO] nessun link a pagine di dettaglio trovato nell'indice")
+        save_debug_page(name, html)
+        print("   [NESSUN RISULTATO] nessun link a pagine di dettaglio trovato nell'indice "
+              "— HTML salvato in debug_pages/ per analisi")
         return [], "nessuna promo riconosciuta"
 
     hrefs = hrefs[:max_details]
@@ -719,8 +788,10 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
         method = "euristica per parole chiave"
 
     if not items:
-        print("   [NESSUN RISULTATO] pagina caricata ma nessuna promo riconosciuta "
-              "(possibile paywall/login richiesto, o struttura pagina non standard)")
+        save_debug_page(name, html)
+        print(f"   [NESSUN RISULTATO] pagina caricata ma nessuna promo riconosciuta "
+              f"(possibile paywall/login richiesto, o struttura pagina non standard) "
+              f"— HTML salvato in debug_pages/ per analisi")
         return [], "nessuna promo riconosciuta"
 
     n_before = len(items)

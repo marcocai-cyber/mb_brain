@@ -4,6 +4,7 @@ scraper_log.txt
 scraper_state.json
 __pycache__/
 *.pyc
+debug_pages/
 
 # Residuo innocuo di un tentativo di setup automatico non riuscito: se non
 # l'hai ancora cancellata da Esplora File, non deve comunque finire nel repo.
