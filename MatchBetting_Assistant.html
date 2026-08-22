@@ -111,6 +111,21 @@
   a.link-out{color:var(--accent2); font-size:12px; text-decoration:none;}
   a.link-out:hover{text-decoration:underline;}
 
+  /* ---- Cartelle (filtro categoria) offerte ---- */
+  .folder-tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+  .folder-tab{
+    display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none;
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px;
+    padding:8px 14px; font-size:13px; font-weight:600; color:var(--muted);
+    transition:border-color .15s, color .15s;
+  }
+  .folder-tab:hover{color:var(--text); border-color:var(--accent2);}
+  .folder-tab.active{color:var(--accent); border-color:var(--accent); background:rgba(61,220,151,.1);}
+  .folder-tab .count{
+    background:rgba(255,255,255,.08); border-radius:20px; padding:1px 8px; font-size:11px;
+  }
+  .folder-tab.active .count{background:rgba(61,220,151,.2);}
+
   /* ---- Card anteprima offerte ---- */
   .offer-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px;}
   .offer-card{
@@ -450,60 +465,11 @@
     </div>
 
     <div class="card">
-      <h2>Nuova offerta / promozione</h2>
-      <div class="row">
-        <div>
-          <label>Bookmaker</label>
-          <input type="text" id="offBook" placeholder="es. Betfair">
-        </div>
-        <div>
-          <label>Titolo offerta</label>
-          <input type="text" id="offTitle" placeholder="es. Bet 10 Get 30">
-        </div>
-        <div>
-          <label>Valore stimato (€)</label>
-          <input type="number" id="offValue" step="0.01" value="0">
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label>Scadenza</label>
-          <input type="date" id="offDeadline">
-        </div>
-        <div>
-          <label>Requisito di puntata (wagering)</label>
-          <input type="text" id="offWager" placeholder="es. 1x entro 7 giorni">
-        </div>
-        <div>
-          <label>Stato</label>
-          <select id="offStatus">
-            <option value="Da iniziare">Da iniziare</option>
-            <option value="In corso">In corso</option>
-            <option value="Completata">Completata</option>
-            <option value="Scaduta">Scaduta</option>
-          </select>
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label>Immagine (URL, opzionale)</label>
-          <input type="text" id="offImage" placeholder="es. https://.../banner-promo.jpg">
-        </div>
-        <div>
-          <label>Link alla promo sul bookmaker (opzionale)</label>
-          <input type="text" id="offUrl" placeholder="es. https://www.sisal.it/scommesse/promozioni">
-        </div>
-      </div>
-      <label>Note</label>
-      <input type="text" id="offNote" placeholder="opzionale">
-      <button class="primary" onclick="addOffer()">Aggiungi offerta</button>
-    </div>
-
-    <div class="card">
       <h2>Offerte attive</h2>
-      <p style="color:var(--muted); font-size:12.5px; margin:-6px 0 14px;">Clicca su una card per vedere la descrizione completa, i termini e condizioni e le altre informazioni.</p>
+      <p style="color:var(--muted); font-size:12.5px; margin:-6px 0 14px;">Le offerte arrivano automaticamente dallo scraper (tab qui sopra "Importa promozioni"). Sono divise in cartelle per tipo: clicca su una cartella per filtrare, poi su una card per vedere la descrizione completa, i termini e condizioni e le altre informazioni.</p>
+      <div class="folder-tabs" id="offerFolderTabs"></div>
       <div class="offer-grid" id="offersGrid"></div>
-      <div class="empty" id="offersEmpty" style="display:none;">Nessuna offerta salvata ancora.</div>
+      <div class="empty" id="offersEmpty" style="display:none;">Nessuna offerta salvata ancora. Vai al tab "🔄 Aggiorna promozioni" per importarle dallo scraper.</div>
     </div>
   </div>
 
@@ -1190,6 +1156,7 @@ function mergeImportedOffers(data){
       image: item.image || '',
       url: item.url || '',
       terms: item.terms || '',
+      categoria: item.categoria || '',
       slots: Array.isArray(item.slots) ? item.slots : []
     };
     if(existing){
@@ -1197,7 +1164,8 @@ function mergeImportedOffers(data){
       // vuota da un import successivo (es. run dove il budget di arricchimento
       // era esaurito): si aggiornano solo se il nuovo import ne porta di nuovi.
       const keepTerms = normalized.terms || existing.terms || '';
-      Object.assign(existing, normalized, {id: existing.id, status: existing.status, terms: keepTerms});
+      const keepCategoria = normalized.categoria || existing.categoria || '';
+      Object.assign(existing, normalized, {id: existing.id, status: existing.status, terms: keepTerms, categoria: keepCategoria});
       updated++;
     } else {
       offers.push({id: Date.now() + Math.floor(Math.random()*10000), ...normalized});
@@ -1444,25 +1412,6 @@ async function silentAutoRefresh(){
   }
 }
 
-function addOffer(){
-  const book = document.getElementById('offBook').value.trim();
-  const title = document.getElementById('offTitle').value.trim();
-  if(!book || !title){ alert('Inserisci bookmaker e titolo offerta.'); return; }
-  const value = parseFloat(document.getElementById('offValue').value) || 0;
-  const deadline = document.getElementById('offDeadline').value;
-  const wager = document.getElementById('offWager').value.trim();
-  const status = document.getElementById('offStatus').value;
-  const image = document.getElementById('offImage').value.trim();
-  const url = document.getElementById('offUrl').value.trim();
-  const note = document.getElementById('offNote').value.trim();
-
-  offers.push({id:Date.now(), book, title, value, deadline, wager, status, note, image, url});
-  save(STORE_KEYS.offers, offers);
-  ['offBook','offTitle','offWager','offNote','offImage','offUrl'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('offValue').value=0;
-  renderOffers();
-}
-
 function deleteOffer(id){
   offers = offers.filter(o=>o.id!==id);
   save(STORE_KEYS.offers, offers);
@@ -1496,12 +1445,56 @@ function escapeHtml(s){
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// Cartelle per tipo di promo. Le offerte scaricate dallo scraper hanno gia'
+// un campo "categoria" assegnato automaticamente; questa funzione serve solo
+// da ripiego per offerte importate prima che questa funzione esistesse (senza
+// campo categoria), usando la stessa logica del lato Python.
+const CATEGORY_KEYWORDS = {
+  'Benvenuto': ['benvenuto', 'welcome', 'nuovi clienti', 'nuovo cliente', 'primo deposito',
+                'prima ricarica', 'registrati e', 'registrazione', 'iscriviti'],
+  'Rimborso': ['rimborso', 'cashback', 'risk free', 'denaro indietro', 'ti rimborsiamo',
+               'soldi indietro', 'rimborsiamo'],
+};
+function offerCategory(o){
+  if(o.categoria) return o.categoria;
+  const low = ((o.title||'') + ' ' + (o.note||'')).toLowerCase();
+  for(const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)){
+    if(kws.some(k => low.includes(k))) return cat;
+  }
+  return 'Ricorrenti';
+}
+
+const OFFER_FOLDERS = ['Tutte', 'Benvenuto', 'Rimborso', 'Ricorrenti'];
+let activeOfferFolder = 'Tutte';
+
+function selectOfferFolder(folder){
+  activeOfferFolder = folder;
+  renderOffers();
+}
+
+function renderFolderTabs(){
+  const bar = document.getElementById('offerFolderTabs');
+  if(!bar) return;
+  bar.innerHTML = OFFER_FOLDERS.map(folder => {
+    const count = folder === 'Tutte' ? offers.length : offers.filter(o => offerCategory(o) === folder).length;
+    const active = folder === activeOfferFolder ? ' active' : '';
+    const icon = {'Tutte':'📁','Benvenuto':'🎉','Rimborso':'💸','Ricorrenti':'🔁'}[folder] || '📁';
+    return `<div class="folder-tab${active}" onclick="selectOfferFolder('${folder}')">${icon} ${folder} <span class="count">${count}</span></div>`;
+  }).join('');
+}
+
 function renderOffers(){
+  renderFolderTabs();
   const grid = document.getElementById('offersGrid');
   grid.innerHTML = '';
-  document.getElementById('offersEmpty').style.display = offers.length ? 'none' : 'block';
+  const visible = activeOfferFolder === 'Tutte' ? offers : offers.filter(o => offerCategory(o) === activeOfferFolder);
+  const emptyEl = document.getElementById('offersEmpty');
+  emptyEl.style.display = visible.length ? 'none' : 'block';
+  emptyEl.textContent = offers.length
+    ? `Nessuna offerta nella cartella "${activeOfferFolder}".`
+    : 'Nessuna offerta salvata ancora. Vai al tab "🔄 Aggiorna promozioni" per importarle dallo scraper.';
 
-  [...offers].sort((a,b)=> (a.deadline||'9999').localeCompare(b.deadline||'9999')).forEach(o=>{
+  [...visible].sort((a,b)=> (a.deadline||'9999').localeCompare(b.deadline||'9999')).forEach(o=>{
     const card = document.createElement('div');
     card.className = 'offer-card';
     card.onclick = () => openOfferModal(o.id);

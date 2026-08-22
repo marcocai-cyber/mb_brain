@@ -306,9 +306,30 @@ def extract_onclick_url(el):
     return ""
 
 
+JUNK_HREFS = {"#", "", "javascript:void(0)", "javascript:void(0);", "javascript:;"}
+CTA_LINK_WORDS = ["scopri", "dettagli", "leggi", "vai alla", "vedi", "attiva", "approfondisci", "info"]
+
+
+def _is_real_href(href):
+    if not href:
+        return False
+    h = href.strip().lower()
+    if h in JUNK_HREFS or h.startswith("javascript:"):
+        return False
+    return True
+
+
 def extract_image_and_link(card, page_url, page_og_image):
     """Cerca un'immagine e un link 'approfondisci' dentro la card della promo.
-    Se la card non ha immagine propria, usa l'og:image dell'intera pagina."""
+    Se la card non ha immagine propria, usa l'og:image dell'intera pagina.
+
+    Per il link: molte card hanno PIU' di un <a> al loro interno (es. un
+    close-button del modale, un'immagine cliccabile che punta a '#', e poi il
+    vero pulsante 'Scopri di piu''): prendere semplicemente il primo <a>
+    trovato spesso becca quello sbagliato. Si raccolgono quindi tutti gli
+    anchor con un href reale (non vuoto/'#'/javascript:) e si preferisce
+    quello il cui testo assomiglia a una call-to-action ('scopri', 'dettagli',
+    'vai alla promo'...); altrimenti si prende il primo valido."""
     image = ""
     img_el = card.find("img")
     if img_el:
@@ -319,20 +340,19 @@ def extract_image_and_link(card, page_url, page_og_image):
         image = page_og_image
 
     link = ""
-    a_el = card if card.name == "a" else card.find("a")
-    if a_el:
-        href = a_el.get("href")
-        if href:
-            link = urljoin(page_url, href)
-        else:
-            onclick_url = extract_onclick_url(a_el)
-            if onclick_url:
-                link = urljoin(page_url, onclick_url)
-    if not link:
-        # cerca un qualunque discendente con onclick che porti a una URL
-        # (non sempre il primo <a> trovato e' quello giusto)
-        for a2 in card.find_all(["a", "button", "div"]):
-            onclick_url = extract_onclick_url(a2)
+    candidates = [card] if card.name == "a" else []
+    candidates += card.find_all("a")
+    valid = [a for a in candidates if _is_real_href(a.get("href"))]
+    if valid:
+        cta = next((a for a in valid
+                    if any(w in a.get_text(" ", strip=True).lower() for w in CTA_LINK_WORDS)), None)
+        chosen = cta or valid[0]
+        link = urljoin(page_url, chosen.get("href"))
+    else:
+        # nessun <a> con href reale: prova con onclick (windowOpen/location.href),
+        # prima sull'anchor stesso poi su qualunque discendente cliccabile.
+        for el in candidates + card.find_all(["button", "div"]):
+            onclick_url = extract_onclick_url(el)
             if onclick_url:
                 link = urljoin(page_url, onclick_url)
                 break
@@ -534,13 +554,79 @@ def extract_max_cap(text):
 
 
 def guess_value(text):
-    m = re.search(r"(\d{1,4})\s*(?:€|euro)", text, re.IGNORECASE)
-    if m:
+    """Cerca l'importo piu' plausibile nel testo. I bookmaker scrivono gli
+    importi in entrambe le notazioni ('30€' con simbolo dopo, comune in
+    italiano, ma anche '€30' con simbolo prima, usata da alcuni siti come
+    bet365): entrambe vanno riconosciute. Quando ci sono piu' numeri nel
+    testo (es. 'Deposita 10€, ricevi 30€ di bonus') si prende il piu' grande,
+    perche' di solito e' il valore della promo (non il deposito minimo)."""
+    values = []
+    for m in re.finditer(r"(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:€|eur\b|euro)", text, re.IGNORECASE):
         try:
-            return float(m.group(1))
+            values.append(float(m.group(1).replace(",", ".")))
         except ValueError:
-            return 0
-    return 0
+            pass
+    for m in re.finditer(r"(?:€|eur\b|euro)\s*(\d{1,4}(?:[.,]\d{1,2})?)", text, re.IGNORECASE):
+        try:
+            values.append(float(m.group(1).replace(",", ".")))
+        except ValueError:
+            pass
+    return max(values) if values else 0
+
+
+# Alcune promo hanno un valore "di facciata" fuorviante rispetto al profitto
+# medio realmente estraibile con il matched betting: il caso piu' comune e'
+# la famiglia bet365 "Ottieni un bonus di X€ Aderisci e piazza una multipla"
+# (bonus di partecipazione su una schedina, non un bonus fisso incassabile
+# per intero) — il valore mostrato nel testo (es. "€5") non riflette il
+# profitto medio reale, che secondo verifica manuale dell'utente e' di circa
+# 3€. Elenco pensato per essere esteso in futuro con altri casi simili, senza
+# dover toccare la logica principale.
+VALUE_OVERRIDES = [
+    {
+        "match": lambda text: (
+            "ottieni un bonus di" in text.lower() and "aderisci" in text.lower()
+        ),
+        "value": 3.0,
+        "note_suffix": " [valore corretto manualmente: il bonus mostrato e' di partecipazione "
+                        "su una multipla, il profitto medio reale e' ~3€, non l'importo di facciata]",
+    },
+]
+
+
+def apply_value_override(text, guessed_value):
+    """Applica una correzione manuale nota al valore stimato, se il testo
+    corrisponde a un pattern gia' verificato come fuorviante. Ritorna
+    (valore_corretto, suffisso_nota_o_stringa_vuota)."""
+    for rule in VALUE_OVERRIDES:
+        if rule["match"](text):
+            return rule["value"], rule["note_suffix"]
+    return guessed_value, ""
+
+
+# Parole chiave per assegnare ogni promo a una delle 3 cartelle usate
+# nell'app (tab Offerte): Benvenuto, Rimborso, Ricorrenti. Controllate in
+# quest'ordine di priorita' — "Benvenuto" prima perche' e' il segnale piu'
+# specifico e inequivocabile, poi "Rimborso", infine tutto il resto (bonus
+# ricorrenti/reload/multiple/cashback periodici) finisce in "Ricorrenti".
+CATEGORY_KEYWORDS = {
+    "Benvenuto": [
+        "benvenuto", "welcome", "nuovi clienti", "nuovo cliente", "primo deposito",
+        "prima ricarica", "registrati e", "registrazione", "iscriviti",
+    ],
+    "Rimborso": [
+        "rimborso", "cashback", "risk free", "denaro indietro", "ti rimborsiamo",
+        "soldi indietro", "rimborsiamo",
+    ],
+}
+
+
+def classify_category(text):
+    low = text.lower()
+    for category, kws in CATEGORY_KEYWORDS.items():
+        if any(k in low for k in kws):
+            return category
+    return "Ricorrenti"
 
 
 
@@ -563,15 +649,23 @@ EXCLUDE_PATTERNS_DEFAULT = [
     "gioco gratuito giornaliero", "svelamenti al giorno", "punti convertibili",
     "club riservato", "regolamento completo", "assistenza clienti",
     "porta un amico", "invita un amico", "montepremi", "bonus progressivo",
+    # Aggiunti su richiesta esplicita dell'utente dopo revisione manuale
+    # (2026-08-16): le quote maggiorate/potenziate avranno una sezione
+    # dedicata a parte in futuro, per ora vanno escluse da qui; le promo con
+    # classifica/torneo hanno un valore a bacino condiviso non garantito per
+    # il singolo giocatore, stesso motivo di "montepremi".
+    "quota maggiorata", "quota potenziata", "classifica", "torneo", "leaderboard",
 ]
 
 # Meccanismi di bonus riconosciuti come potenzialmente calcolabili (matched
 # betting o EV di slot bonus hunting). Elenco di partenza, estendibile in
 # scraper_config.json (chiave "monetizable_keywords") senza toccare il codice.
+# NOTA: "quota maggiorata"/"quota potenziata" rimosse il 2026-08-16 (vedi
+# EXCLUDE_PATTERNS_DEFAULT) — ora escluse invece che accettate.
 MONETIZABLE_KEYWORDS_DEFAULT = [
     "bonus di benvenuto", "welcome bonus", "free bet", "freebet", "bonus cash",
     "fun bonus", "bonus deposito", "primo deposito", "cashback", "rimborso",
-    "quota maggiorata", "quota potenziata", "giri gratis", "free spin",
+    "giri gratis", "free spin",
     "bonus sport", "bonus scommesse", "bonus slot", "deposito minimo",
     "scommessa minima", "quota minima", "moltiplicatore",
 ]
@@ -734,6 +828,7 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
     scarti_txt = f", {n_scartate} scartate come non monetizzabili/doppioni" if n_scartate else ""
     print(f"   trovate {len(items)} promo (pagina dettaglio, 2 step{scarti_txt})")
     results = []
+    n_zero_value = 0
     for it in items:
         detail_url = it["_detail_url"]
         dsoup = it["_page_soup"]
@@ -742,6 +837,11 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
         full_text = it["el"].get_text(" ", strip=True)
         candidate_slots = extract_candidate_slots(full_text)
         max_cap = extract_max_cap(full_text)
+        full_search_text = it["title"] + " " + it["snippet"]
+        value, override_note = apply_value_override(full_search_text, guess_value(it["snippet"]))
+        if value <= 0:
+            n_zero_value += 1
+            continue
         # Il T&C completo viene ricavato dalla stessa pagina di dettaglio gia'
         # visitata (nessuna richiesta aggiuntiva): decompose() e' distruttivo,
         # quindi va chiamato per ultimo su questo soup.
@@ -749,17 +849,20 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
         results.append({
             "book": name,
             "title": it["title"],
-            "value": guess_value(it["snippet"]),
+            "value": value,
             "deadline": guess_deadline(it["snippet"]),
             "wager": "",
             "status": "Da iniziare",
-            "note": f"[auto {datetime.now().strftime('%Y-%m-%d')}] {it['snippet']} — fonte: {detail_url}",
+            "categoria": classify_category(full_search_text),
+            "note": f"[auto {datetime.now().strftime('%Y-%m-%d')}] {it['snippet']} — fonte: {detail_url}{override_note}",
             "image": image,
             "url": detail_url,
             "max_cap": max_cap,
             "candidate_slots": candidate_slots,
             "terms": terms,
         })
+    if n_zero_value:
+        print(f"   -{n_zero_value} scartate: nessun valore economico individuabile (mostrerebbero €0)")
     return results, "ok"
 
 
@@ -819,24 +922,37 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
     scarti_txt = f", {n_scartate} scartate come non monetizzabili/doppioni" if n_scartate else ""
     print(f"   trovate {len(items)} promo ({method}{scarti_txt})")
     results = []
+    n_zero_value = 0
     for it in items:
         image, link = extract_image_and_link(it["el"], url, page_og_image)
         full_text = it["el"].get_text(" ", strip=True)
         candidate_slots = extract_candidate_slots(full_text)
         max_cap = extract_max_cap(full_text)
+        full_search_text = it["title"] + " " + it["snippet"]
+        value, override_note = apply_value_override(full_search_text, guess_value(it["snippet"]))
+        if value <= 0:
+            # Promo senza un valore economico individuabile: su richiesta
+            # esplicita dell'utente, scartata invece di essere mostrata a €0
+            # (spesso e' rumore: link generici, giochi non a valore garantito,
+            # o semplicemente testo troppo vago per stimare un importo).
+            n_zero_value += 1
+            continue
         results.append({
             "book": name,
             "title": it["title"],
-            "value": guess_value(it["snippet"]),
+            "value": value,
             "deadline": guess_deadline(it["snippet"]),
             "wager": "",
             "status": "Da iniziare",
-            "note": f"[auto {datetime.now().strftime('%Y-%m-%d')}] {it['snippet']} — fonte: {url}",
+            "categoria": classify_category(full_search_text),
+            "note": f"[auto {datetime.now().strftime('%Y-%m-%d')}] {it['snippet']} — fonte: {url}{override_note}",
             "image": image,
             "url": link,
             "max_cap": max_cap,
             "candidate_slots": candidate_slots,
         })
+    if n_zero_value:
+        print(f"   -{n_zero_value} scartate: nessun valore economico individuabile (mostrerebbero €0)")
 
     # Arricchimento con i T&C completi dalla pagina di dettaglio di ogni
     # singola promo (link estratto dalla card): rispetta cache (non ri-scarica
@@ -1011,6 +1127,29 @@ def main():
     # Unisce con le promozioni gia' presenti nel file (evita di perdere lo
     # storico se un run trova meno risultati di uno precedente). 'existing' e'
     # gia' stato caricato a inizio funzione (serviva anche per la cache T&C).
+    #
+    # Le regole di esclusione/valore possono cambiare nel tempo (es. filtri
+    # aggiunti dopo revisione manuale dell'utente): senza un ricontrollo, le
+    # promo gia' salvate in run precedenti resterebbero per sempre nel file
+    # anche se oggi verrebbero scartate (il merge normalmente aggiorna solo le
+    # chiavi che ricompaiono in questo run). Per questo, ad ogni run, le
+    # promo esistenti vengono ri-validate con le regole ATTUALI e quelle che
+    # non le rispettano piu' vengono eliminate — cosi' il file si "ripulisce"
+    # da solo quando i filtri migliorano, senza dover aspettare che il sito
+    # smetta di proporle.
+    def still_valid(o):
+        text = (o.get("title", "") + " " + o.get("note", "")).lower()
+        if any(p in text for p in exclude_keywords):
+            return False
+        if not o.get("value"):
+            return False
+        return True
+
+    existing = [o for o in existing if still_valid(o)]
+    for o in existing:
+        if "categoria" not in o:
+            o["categoria"] = classify_category(o.get("title", "") + " " + o.get("note", ""))
+
     merged = {(o["book"], o["title"]): o for o in existing}
     for o in all_offers:
         merged[(o["book"], o["title"])] = o

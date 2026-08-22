@@ -279,6 +279,49 @@ salvate nel tab Offerte e incrociandole con il piano:
 Si aggiorna automaticamente ogni volta che premi "Calcola il mio piano" con le offerte presenti in
 quel momento nel tab Offerte (manuali o importate dallo scraper).
 
+## Filtri e cartelle per tipo di promo (dal 2026-08-16)
+
+Dopo una revisione manuale dell'utente, lo script filtra molto di più prima di salvare una promo,
+per ridurre il rumore:
+
+- **Scartate sempre**: "porta un amico"/"invita un amico" (valore non garantito), quote maggiorate/
+  potenziate (avranno una sezione dedicata in futuro), promo con classifica/torneo/leaderboard
+  (premio a bacino condiviso tra i partecipanti, non un valore garantito per te), oltre alle
+  esclusioni già esistenti (montepremi, bonus progressivo, rumore di navigazione/login/errori).
+- **Scartate se il valore stimato è €0**: se lo script non riesce a individuare nessun importo
+  economico nel testo, la promo viene scartata invece di essere mostrata a "€0" (spesso è rumore:
+  link generici o testo troppo vago). Fa eccezione la famiglia bet365 "Ottieni un bonus di X€
+  Aderisci" (bonus di partecipazione su una schedina): riconosciuta automaticamente e corretta a
+  un valore fisso di 3€, che riflette il profitto medio reale verificato manualmente invece del
+  valore di facciata mostrato dal bookmaker (che spesso risultava €0 perché scritto come "€5" con
+  il simbolo prima del numero, non riconosciuto dal vecchio estrattore).
+- **Auto-pulizia ad ogni run**: queste regole si applicano anche alle promo già salvate nei run
+  precedenti, non solo a quelle nuove — quindi il file `promozioni.json` si "ripulisce" da solo nel
+  tempo quando i filtri migliorano, senza dover aspettare che il sito smetta di proporle.
+
+Ogni promo viene anche assegnata automaticamente a una **cartella** (campo `categoria`), visibile
+nell'app come filtro nel tab Offerte:
+
+- **Benvenuto**: bonus per nuovi clienti/prima registrazione/primo deposito.
+- **Rimborso**: cashback, risk free, "ti rimborsiamo se perdi".
+- **Ricorrenti**: tutto il resto (reload, bonus multipla, promo periodiche non legate alla
+  registrazione).
+
+Nell'app, il form per **aggiungere un'offerta a mano è stato rimosso**: le offerte arrivano solo
+dallo scraper (tab "🔄 Aggiorna promozioni" → Importa). Restano invece i controlli su ogni card per
+cambiare stato ed eliminare una singola offerta.
+
+### Perché i T&C mancavano su molte promo (e come è stato corretto)
+
+Il T&C completo viene scaricato dalla pagina di dettaglio della singola promo, seguendo il link
+"Scopri di più"/"Dettagli" della card. Il problema era che su molti bookmaker (es. DAZN Bet,
+Marathonbet, Betsson, StanleyBet...) quel link non veniva trovato: la card contiene spesso *più* di
+un `<a>` (es. una "x" per chiudere un popup, un'immagine cliccabile che punta a "#"), e lo script
+prendeva sempre il primo trovato — quasi mai quello giusto. Corretto scartando i link vuoti/"#"/
+"javascript:" e preferendo quello il cui testo assomiglia a una call-to-action ("scopri", "dettagli",
+"vai alla promo"...). Con questa correzione, i T&C dovrebbero iniziare a popolarsi sui prossimi run
+(entro il budget di 40 nuove pagine di dettaglio per run — vedi sezione precedente).
+
 ## Attendibilità dei dati
 
 Lo script prova prima selettori CSS specifici (se li aggiungi in `scraper_config.json`), altrimenti
