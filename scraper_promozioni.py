@@ -629,6 +629,26 @@ def classify_category(text):
     return "Ricorrenti"
 
 
+# Su richiesta esplicita dell'utente (2026-08-16): tra i bonus di benvenuto,
+# tenere SOLO quelli sport o slot, scartando le altre verticali (casino'
+# generico, poker, bingo, carte, lotterie, virtuali, ippica...) — troppo
+# rumore rispetto a quello che interessa davvero per il matched betting/slot
+# bonus hunting. "freebet"/"exchange"/ecc. sono segnali di sport anche se la
+# parola "sport" non compare letteralmente; stessa cosa per "free spin" come
+# segnale di slot anche senza la parola "slot" esplicita.
+WELCOME_SPORT_KEYWORDS = [
+    "sport", "scommess", "freebet", "free bet", "exchange", "schedina",
+    "multipla", "quota minima", "quota maggiorata",
+]
+WELCOME_SLOT_KEYWORDS = ["slot", "free spin", "freespin", "giri gratis"]
+
+
+def is_sport_or_slot_welcome(text):
+    low = text.lower()
+    return (any(k in low for k in WELCOME_SPORT_KEYWORDS)
+            or any(k in low for k in WELCOME_SLOT_KEYWORDS))
+
+
 
 # Frasi tipiche di navigazione/boilerplate che NON sono mai una vera promo,
 # anche se contengono per caso una parola chiave (es. "promozioni" nel menu):
@@ -829,6 +849,7 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
     print(f"   trovate {len(items)} promo (pagina dettaglio, 2 step{scarti_txt})")
     results = []
     n_zero_value = 0
+    n_non_sport_slot = 0
     for it in items:
         detail_url = it["_detail_url"]
         dsoup = it["_page_soup"]
@@ -842,6 +863,10 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
         if value <= 0:
             n_zero_value += 1
             continue
+        categoria = classify_category(full_search_text)
+        if categoria == "Benvenuto" and not is_sport_or_slot_welcome(full_search_text):
+            n_non_sport_slot += 1
+            continue
         # Il T&C completo viene ricavato dalla stessa pagina di dettaglio gia'
         # visitata (nessuna richiesta aggiuntiva): decompose() e' distruttivo,
         # quindi va chiamato per ultimo su questo soup.
@@ -853,7 +878,7 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
             "deadline": guess_deadline(it["snippet"]),
             "wager": "",
             "status": "Da iniziare",
-            "categoria": classify_category(full_search_text),
+            "categoria": categoria,
             "note": f"[auto {datetime.now().strftime('%Y-%m-%d')}] {it['snippet']} — fonte: {detail_url}{override_note}",
             "image": image,
             "url": detail_url,
@@ -863,6 +888,8 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
         })
     if n_zero_value:
         print(f"   -{n_zero_value} scartate: nessun valore economico individuabile (mostrerebbero €0)")
+    if n_non_sport_slot:
+        print(f"   -{n_non_sport_slot} scartate: bonus di benvenuto non sport/slot (casino'/poker/bingo/altro)")
     return results, "ok"
 
 
@@ -923,6 +950,7 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
     print(f"   trovate {len(items)} promo ({method}{scarti_txt})")
     results = []
     n_zero_value = 0
+    n_non_sport_slot = 0
     for it in items:
         image, link = extract_image_and_link(it["el"], url, page_og_image)
         full_text = it["el"].get_text(" ", strip=True)
@@ -937,6 +965,13 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
             # o semplicemente testo troppo vago per stimare un importo).
             n_zero_value += 1
             continue
+        categoria = classify_category(full_search_text)
+        if categoria == "Benvenuto" and not is_sport_or_slot_welcome(full_search_text):
+            # Tra i bonus di benvenuto, su richiesta esplicita dell'utente si
+            # tengono solo sport e slot: casino'/poker/bingo/lotterie/altre
+            # verticali vengono scartate.
+            n_non_sport_slot += 1
+            continue
         results.append({
             "book": name,
             "title": it["title"],
@@ -944,7 +979,7 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
             "deadline": guess_deadline(it["snippet"]),
             "wager": "",
             "status": "Da iniziare",
-            "categoria": classify_category(full_search_text),
+            "categoria": categoria,
             "note": f"[auto {datetime.now().strftime('%Y-%m-%d')}] {it['snippet']} — fonte: {url}{override_note}",
             "image": image,
             "url": link,
@@ -953,6 +988,8 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
         })
     if n_zero_value:
         print(f"   -{n_zero_value} scartate: nessun valore economico individuabile (mostrerebbero €0)")
+    if n_non_sport_slot:
+        print(f"   -{n_non_sport_slot} scartate: bonus di benvenuto non sport/slot (casino'/poker/bingo/altro)")
 
     # Arricchimento con i T&C completi dalla pagina di dettaglio di ogni
     # singola promo (link estratto dalla card): rispetta cache (non ri-scarica
@@ -1138,10 +1175,21 @@ def main():
     # da solo quando i filtri migliorano, senza dover aspettare che il sito
     # smetta di proporle.
     def still_valid(o):
-        text = (o.get("title", "") + " " + o.get("note", "")).lower()
-        if any(p in text for p in exclude_keywords):
+        # Il campo 'note' puo' avere in coda avvisi automatici aggiunti dopo
+        # il testo originale della promo (es. "| ATTENZIONE: ... tab Strategia
+        # Slot", "| Slot rilevate: ..."), che contengono parole come "Slot"
+        # non legate alla verticale della promo ma al nome di un tab
+        # dell'app: vanno escluse dal controllo, altrimenti qualunque promo
+        # (anche poker/bingo) sembrerebbe "slot" solo per via dell'avviso.
+        raw_note = o.get("note", "").split(" | ")[0]
+        text = o.get("title", "") + " " + raw_note
+        low = text.lower()
+        if any(p in low for p in exclude_keywords):
             return False
         if not o.get("value"):
+            return False
+        categoria = o.get("categoria") or classify_category(text)
+        if categoria == "Benvenuto" and not is_sport_or_slot_welcome(text):
             return False
         return True
 
