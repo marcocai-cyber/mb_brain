@@ -322,6 +322,28 @@ prendeva sempre il primo trovato — quasi mai quello giusto. Corretto scartando
 "vai alla promo"...). Con questa correzione, i T&C dovrebbero iniziare a popolarsi sui prossimi run
 (entro il budget di 40 nuove pagine di dettaglio per run — vedi sezione precedente).
 
+## L'app online non mostra le ultime modifiche dopo un aggiornamento
+
+GitHub Pages non permette di dire al browser "non tenere mai in cache questa pagina" tramite
+header del server, quindi a volte un refresh normale mostra ancora la versione vecchia
+dell'app anche dopo un `git push` andato a buon fine (capita più spesso su smartphone).
+
+Dal 2026-08-16 l'app include delle protezioni per ridurre il problema (meta tag anti-cache,
+e un parametro che cambia ad ogni apertura quando la apri dal link principale
+`https://marcocai-cyber.github.io/mb_brain/`). In alto a sinistra, sotto il titolo, trovi anche
+la scritta piccola **"Versione app: [data]"**: se dopo un aggiornamento quella data non è
+cambiata, il browser sta ancora mostrando la cache.
+
+Se succede, in ordine di efficacia:
+
+1. **Ricarica forzata**: su desktop `Ctrl+Shift+R` (Windows) o `Cmd+Shift+R` (Mac). Su
+   smartphone di solito non esiste un tasto equivalente: prova a tenere premuto il pulsante di
+   ricarica del browser (su alcuni Android compare un menu con "Ricarica ignorando cache"),
+   oppure vai nelle impostazioni del browser e cancella dati/cache solo per questo sito.
+2. **Apri in una scheda privata/in incognito**: non usa la cache normale, quindi mostra sempre
+   l'ultima versione — utile anche solo per verificare se il problema è davvero la cache.
+3. **Chiudi e riapri completamente il browser** (non solo la scheda) su smartphone.
+
 ## Attendibilità dei dati
 
 Lo script prova prima selettori CSS specifici (se li aggiungi in `scraper_config.json`), altrimenti

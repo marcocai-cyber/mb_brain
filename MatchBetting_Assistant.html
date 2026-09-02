@@ -3,6 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Anti-cache: GitHub Pages non permette di impostare header HTTP
+     personalizzati, quindi il browser a volte tiene in cache questa pagina
+     anche dopo un refresh normale, mostrando una versione vecchia. Questi
+     meta tag chiedono al browser di non riusarla dalla cache e ricontrollare
+     sempre col server. Non funzionano al 100% su tutti i browser mobile, ma
+     coprono la maggior parte dei casi; in aggiunta, index.html carica questa
+     pagina con un parametro che cambia ad ogni apertura per forzare un
+     download fresco anche quando si passa da li'. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Match Betting Assistant</title>
 <style>
   :root{
@@ -192,6 +203,7 @@
     <div class="sub">Prototipo — calcolatore, tracker profitti, gestione offerte e account</div>
   </div>
   <div style="font-size:12px;color:var(--muted)">Dati salvati solo in questo browser (localStorage)</div>
+  <div style="font-size:11px;color:var(--muted);opacity:.7;margin-top:2px;" title="Se dopo un aggiornamento questa data non cambia, il browser sta mostrando una versione in cache: prova a ricaricare tenendo premuto il pulsante di refresh, o cancella la cache del sito.">Versione app: 2026-08-16</div>
 </header>
 
 <nav>

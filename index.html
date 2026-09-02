@@ -2,9 +2,17 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=MatchBetting_Assistant.html">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>MatchBetting Assistant</title>
-<script>location.replace('MatchBetting_Assistant.html');</script>
+<script>
+  // Parametro che cambia ad ogni apertura: forza il browser a scaricare una
+  // copia fresca di MatchBetting_Assistant.html invece di riusarne una
+  // vecchia dalla cache (risolve il problema "aggiorno la pagina ma non vedo
+  // le modifiche" per chi apre l'app da questo indirizzo, es. dai preferiti).
+  location.replace('MatchBetting_Assistant.html?v=' + Date.now());
+</script>
 </head>
 <body>
   <p>Apertura di MatchBetting Assistant... se non parte automaticamente,
