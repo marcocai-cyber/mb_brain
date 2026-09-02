@@ -137,6 +137,18 @@
   }
   .folder-tab.active .count{background:rgba(61,220,151,.2);}
 
+  /* ---- Matched Bet (coppia punta-bookmaker + lay-exchange collegate) ---- */
+  .mb-actions{display:flex; gap:6px; flex-wrap:wrap;}
+  .mb-btn{
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:5px 9px; border-radius:6px; cursor:pointer; font-size:11.5px; font-weight:600; white-space:nowrap;
+  }
+  .mb-btn:hover{border-color:var(--accent2);}
+  .mb-btn.win{border-color:var(--accent); color:var(--accent);}
+  .mb-btn.win:hover{background:rgba(61,220,151,.12);}
+  .mb-btn.void{border-color:var(--warn); color:var(--warn);}
+  .mb-btn.void:hover{background:rgba(242,184,75,.12);}
+
   /* ---- Card anteprima offerte ---- */
   .offer-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px;}
   .offer-card{
@@ -209,6 +221,7 @@
 <nav>
   <button class="tab-btn active" data-tab="calc">🧮 Calcolatore</button>
   <button class="tab-btn" data-tab="tracker">📊 Tracker</button>
+  <button class="tab-btn" data-tab="matchedbets">🔗 Matched Bet</button>
   <button class="tab-btn" data-tab="offers">🎁 Offerte</button>
   <button class="tab-btn" data-tab="accounts">👤 Account</button>
   <button class="tab-btn" data-tab="slotstrategy">🎰 Strategia Slot</button>
@@ -232,8 +245,10 @@
 
         <div class="mode-selector" id="pbModeSelector">
           <label class="mode-option active"><input type="radio" name="pbMode" value="qualificante" checked onchange="onPbModeChange()"><span>Qualificante</span></label>
-          <label class="mode-option"><input type="radio" name="pbMode" value="riskfree" onchange="onPbModeChange()"><span>Risk Free</span></label>
           <label class="mode-option"><input type="radio" name="pbMode" value="bonus" onchange="onPbModeChange()"><span>Bonus</span></label>
+          <label class="mode-option"><input type="radio" name="pbMode" value="freebet" onchange="onPbModeChange()"><span>Freebet</span></label>
+          <label class="mode-option"><input type="radio" name="pbMode" value="riskfree" onchange="onPbModeChange()"><span>Rimborso</span></label>
+          <label class="mode-option"><input type="radio" name="pbMode" value="boost" onchange="onPbModeChange()"><span>Boost</span></label>
         </div>
         <p class="field-hint" id="pbModeHint" style="margin-top:8px;"></p>
 
@@ -256,11 +271,25 @@
         </div>
 
         <div id="pbBonusTypeRow" style="display:none;">
-          <label>Questo bonus, se vinci, restituisce anche la puntata?</label>
-          <select id="pbBonusType">
+          <label>Questa free bet, se vinci, restituisce anche la puntata?</label>
+          <select id="pbBonusType" onchange="runPBCalc()">
             <option value="snr">No, solo la vincita (il caso più comune)</option>
             <option value="sr">Sì, torna anche la puntata</option>
           </select>
+        </div>
+
+        <div class="row" id="pbBoostRow" style="display:none;">
+          <div>
+            <label>Tipo di boost</label>
+            <select id="pbBoostType" onchange="runPBCalc()">
+              <option value="lordo">Lordo — aumenta direttamente la quota</option>
+              <option value="netto">Netto — bonus extra sulla vincita, quota invariata</option>
+            </select>
+          </div>
+          <div>
+            <label>Boost (%)</label>
+            <input type="number" id="pbBoostPct" value="10" step="0.1" min="0">
+          </div>
         </div>
 
         <div class="row">
@@ -275,12 +304,61 @@
         </div>
         <p class="field-hint" style="margin-top:2px;">La commissione la trovi nelle impostazioni del tuo account exchange (di solito 2-5%).</p>
 
+        <h3>Collega a un evento e a due conti (opzionale, serve solo per "Salva come Matched Bet")</h3>
+        <div class="row">
+          <div>
+            <label>Evento</label>
+            <input type="text" id="pbEvent" placeholder="es. Juventus - Milan">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Conto bookmaker (dove punti)</label>
+            <input type="text" id="pbBookAccount" list="bookAccountsList" placeholder="es. Sisal">
+          </div>
+          <div>
+            <label>Conto banca / exchange (dove copri)</label>
+            <input type="text" id="pbExchangeAccount" list="exchangeAccountsList" placeholder="es. Betfair Exchange">
+          </div>
+        </div>
+        <datalist id="bookAccountsList"></datalist>
+        <datalist id="exchangeAccountsList"></datalist>
+
         <div class="form-actions">
           <button class="primary" onclick="runPBCalc()">Calcola</button>
           <button class="ghost" onclick="sendPBToTracker()">➕ Aggiungi al tracker</button>
+          <button class="ghost" onclick="saveAsMatchedBet()" title="Salva la puntata e la copertura come un'unica voce collegata, da chiudere in un click quando sai chi ha vinto">🔗 Salva come Matched Bet</button>
         </div>
 
         <div id="pbResult"></div>
+
+        <details style="margin-top:16px;">
+          <summary style="cursor:pointer; color:var(--muted); font-size:13px;">📊 Scenari (cosa succede in ciascun caso)</summary>
+          <div id="pbScenari" style="margin-top:10px;"></div>
+        </details>
+
+        <details style="margin-top:10px;">
+          <summary style="cursor:pointer; color:var(--muted); font-size:13px;">⚠️ Scommessa non abbinata (la banca si è abbinata solo in parte)</summary>
+          <div style="margin-top:10px;">
+            <p class="field-hint" style="margin-top:0;">Se la bancata sull'exchange si è abbinata solo in parte (o l'exchange ti offriva una quota diversa da quella prevista quando l'hai piazzata), inserisci qui quanto è già stato abbinato e la nuova quota disponibile per il resto: calcola quanta banca aggiuntiva serve e il nuovo risultato.</p>
+            <div class="row">
+              <div>
+                <label>Già abbinato in banca (€)</label>
+                <input type="number" id="pbUnmatchedFilled" value="0" step="0.01" min="0">
+              </div>
+              <div>
+                <label>Nuova quota disponibile in banca</label>
+                <input type="number" id="pbUnmatchedNewOdds" step="0.01" min="1.01" placeholder="es. 3.55">
+              </div>
+              <div>
+                <label>Commissione exchange (%)</label>
+                <input type="number" id="pbUnmatchedCommission" step="0.1" min="0" placeholder="es. 2">
+              </div>
+            </div>
+            <button class="ghost" onclick="calcUnmatched()">Ricalcola</button>
+            <div id="pbUnmatchedResult" class="result-box" style="display:none;"></div>
+          </div>
+        </details>
       </div>
 
       <div class="card">
@@ -440,6 +518,33 @@
         </table>
       </div>
       <div class="empty" id="betsEmpty" style="display:none;">Nessuna scommessa registrata ancora.</div>
+    </div>
+  </div>
+
+  <!-- ===================== MATCHED BET (punta+banca collegate) ===================== -->
+  <div class="tabpage" id="tab-matchedbets">
+    <div class="summary-grid" id="matchedBetsSummary"></div>
+
+    <div class="card">
+      <h2>🔗 Matched Bet</h2>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6; margin-top:0;">
+        Una Matched Bet collega la puntata sul bookmaker e la copertura in banca (exchange) calcolate
+        insieme nel tab Calcolatore, come un'unica voce. Quando la partita finisce, chiudila con un
+        click scegliendo chi ha vinto tra la puntata e la copertura: il profitto/perdita di entrambi i
+        lati viene calcolato in automatico e, se i nomi dei conti corrispondono a quelli salvati nel tab
+        Account, il loro saldo si aggiorna da solo.
+      </p>
+      <div class="table-wrap">
+        <table id="matchedBetsTable">
+          <thead>
+            <tr><th>Data</th><th>Evento</th><th>Puntata (bookmaker)</th><th>Copertura (banca)</th><th>Responsabilità</th><th>Stato</th><th>P/L</th><th>Opzioni</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="empty" id="matchedBetsEmpty" style="display:none;">
+        Nessuna Matched Bet ancora. Vai al tab "🧮 Calcolatore", calcola una copertura Punta/Banca e clicca "🔗 Salva come Matched Bet".
+      </div>
     </div>
   </div>
 
@@ -743,7 +848,7 @@
       <h3>1. Su questo PC: esporta</h3>
       <button class="primary" onclick="exportBackup()">⬇️ Esporta tutti i dati (backup.json)</button>
       <p class="field-hint">Scarica un file <code>matchbetting_backup.json</code> con scommesse,
-        offerte, account e profilo. Copialo insieme al file <code>MatchBetting_Assistant.html</code>
+        offerte, account, matched bet e profilo. Copialo insieme al file <code>MatchBetting_Assistant.html</code>
         (e agli script dello scraper, se li usi) su una chiavetta USB, cloud o email.</p>
 
       <h3 style="margin-top:24px;">2. Sull'altro PC: importa</h3>
@@ -786,13 +891,14 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 });
 
 /* ---------- Storage helpers ---------- */
-const STORE_KEYS = {bets:'mba_bets', offers:'mba_offers', accounts:'mba_accounts'};
+const STORE_KEYS = {bets:'mba_bets', offers:'mba_offers', accounts:'mba_accounts', matchedBets:'mba_matchedbets'};
 function load(key){ try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; } }
 function save(key, data){ localStorage.setItem(key, JSON.stringify(data)); }
 
 let bets = load(STORE_KEYS.bets);
 let offers = load(STORE_KEYS.offers);
 let accounts = load(STORE_KEYS.accounts);
+let matchedBets = load(STORE_KEYS.matchedBets);
 
 const fmt = n => (Math.round(n*100)/100).toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:2});
 const euro = n => (n>=0?'+':'') + '€' + fmt(n);
@@ -812,8 +918,10 @@ let lastPB = null;
 
 const PB_MODE_HINTS = {
   qualificante: 'Punti soldi veri, di solito per sbloccare un bonus di benvenuto: piccola perdita attesa pari al costo di copertura.',
+  bonus: 'Punti soldi veri con la stessa copertura di una Qualificante, ma se la puntata perde non perdi nulla (es. "bet insurance": il bookmaker ti rimborsa a monte la puntata persa).',
+  freebet: 'Copri una free bet già ricevuta dal bookmaker (non sono soldi tuoi).',
   riskfree: 'Punti soldi veri: se perdi, il bookmaker ti rimborsa (in bonus o contanti) fino all\'importo che indichi qui sotto.',
-  bonus: 'Copri una free bet già ricevuta dal bookmaker (non sono soldi tuoi).',
+  boost: 'Il bookmaker aumenta la quota, oppure aggiunge un bonus extra sulla vincita: scegli il tipo di boost e la percentuale.',
 };
 
 function onPbModeChange(){
@@ -823,9 +931,52 @@ function onPbModeChange(){
   });
   document.getElementById('pbModeHint').textContent = PB_MODE_HINTS[mode] || '';
   document.getElementById('pbRefundRow').style.display = mode === 'riskfree' ? 'flex' : 'none';
-  document.getElementById('pbBonusTypeRow').style.display = mode === 'bonus' ? 'block' : 'none';
-  document.getElementById('pbStakeLabel').textContent = mode === 'bonus' ? 'Valore della free bet (€)' : 'Quanto punti sul bookmaker (€)';
+  document.getElementById('pbBonusTypeRow').style.display = mode === 'freebet' ? 'block' : 'none';
+  document.getElementById('pbBoostRow').style.display = mode === 'boost' ? 'flex' : 'none';
+  document.getElementById('pbStakeLabel').textContent = mode === 'freebet' ? 'Valore della free bet (€)' : 'Quanto punti sul bookmaker (€)';
   runPBCalc();
+}
+
+// Scompone il risultato aggregato nei due lati (bookmaker/banca) per ciascun
+// esito possibile — usata sia dalla tabella "Scenari" qui sotto sia dalla
+// funzione Matched Bet (vedi commento esteso più in basso in questo file) per
+// aggiornare i saldi dei due conti separatamente alla chiusura.
+function pbLegBreakdown(pb){
+  const exchangeLegWin = -pb.liability;
+  const exchangeLegLose = pb.layStake * (1 - pb.commission);
+  const bookLegWin = pb.profitIfWins - exchangeLegWin;
+  const bookLegLose = pb.profitIfLoses - exchangeLegLose;
+  return {bookLegWin, exchangeLegWin, bookLegLose, exchangeLegLose};
+}
+
+function renderPbScenari(pb){
+  const el = document.getElementById('pbScenari');
+  if(!el) return;
+  const {bookLegWin, exchangeLegWin, bookLegLose, exchangeLegLose} = pbLegBreakdown(pb);
+  const totWin = bookLegWin + exchangeLegWin;
+  const totLose = bookLegLose + exchangeLegLose;
+  const c = n => n >= 0 ? 'var(--accent)' : 'var(--danger)';
+  el.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Scenario</th><th>Punta</th><th>Banca</th><th>Totale</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Se vince la puntata</td>
+            <td style="color:${c(bookLegWin)}">${euro(bookLegWin)}</td>
+            <td style="color:${c(exchangeLegWin)}">${euro(exchangeLegWin)}</td>
+            <td style="font-weight:700; color:${c(totWin)}">${euro(totWin)}</td>
+          </tr>
+          <tr>
+            <td>Se vince la banca</td>
+            <td style="color:${c(bookLegLose)}">${euro(bookLegLose)}</td>
+            <td style="color:${c(exchangeLegLose)}">${euro(exchangeLegLose)}</td>
+            <td style="font-weight:700; color:${c(totLose)}">${euro(totLose)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function runPBCalc(){
@@ -835,33 +986,59 @@ function runPBCalc(){
   const layOdds = parseFloat(document.getElementById('pbLayOdds').value) || 0;
   const commission = (parseFloat(document.getElementById('pbCommission').value) || 0) / 100;
   const refund = parseFloat(document.getElementById('pbRefund').value) || 0;
-  const bonusType = document.getElementById('pbBonusType').value; // 'snr' | 'sr'
+  const bonusType = document.getElementById('pbBonusType').value; // 'snr' | 'sr' (modalità Freebet)
+  const boostType = document.getElementById('pbBoostType').value; // 'lordo' | 'netto' (modalità Boost)
+  const boostPct = (parseFloat(document.getElementById('pbBoostPct').value) || 0) / 100;
 
   if(odds <= 1 || layOdds <= 1 || stake <= 0){
     document.getElementById('pbResult').innerHTML = '<div class="empty">Inserisci una puntata e quote valide (> 1.00).</div>';
+    document.getElementById('pbScenari').innerHTML = '';
+    lastPB = null;
     return;
   }
 
-  let layStake, liability, profitIfWins, profitIfLoses, pctValue = null, pctLabel = null;
+  // Boost "lordo": la quota vera e propria aumenta, e si copre quella nuova
+  // quota come fosse una Qualificante. Boost "netto": la quota resta quella
+  // base, ma se la puntata vince si aggiunge un bonus extra (tipico delle
+  // offerte "vinci un bonus extra se la giocata passa"), che quindi conta
+  // solo nello scenario "vince la puntata", non in quello "vince la banca".
+  let displayOdds = odds, boostBonus = 0;
+  if(mode === 'boost'){
+    if(boostType === 'lordo') displayOdds = odds + (odds - 1) * boostPct;
+    else boostBonus = stake * (odds - 1) * boostPct;
+  }
 
-  if(mode === 'qualificante'){
+  let layStake, liability, profitIfWins, profitIfLoses;
+
+  if(mode === 'qualificante' || (mode === 'boost' && boostType === 'lordo')){
+    layStake = (stake * displayOdds) / (layOdds - commission);
+    liability = layStake * (layOdds - 1);
+    profitIfWins = (stake * (displayOdds - 1)) - liability;
+    profitIfLoses = layStake * (1 - commission) - stake;
+  } else if(mode === 'boost'){ // netto
+    layStake = (stake * odds) / (layOdds - commission);
+    liability = layStake * (layOdds - 1);
+    profitIfWins = (stake * (odds - 1)) - liability + boostBonus;
+    profitIfLoses = layStake * (1 - commission) - stake;
+  } else if(mode === 'bonus'){
+    // Stessa copertura di una Qualificante (stessa quota, stesso schema di
+    // banca), ma la puntata persa non costa nulla: pensata per offerte tipo
+    // "bet insurance", dove il bookmaker rimborsa a monte una puntata persa.
     layStake = (stake * odds) / (layOdds - commission);
     liability = layStake * (layOdds - 1);
     profitIfWins = (stake * (odds - 1)) - liability;
-    profitIfLoses = layStake * (1 - commission) - stake;
+    profitIfLoses = layStake * (1 - commission);
   } else if(mode === 'riskfree'){
     // Derivazione: layStake tale per cui il profitto e' identico sia che
     // vinca la puntata sia che vinca la banca (con il rimborso incluso nel
     // secondo caso). Con rimborso=0 coincide esattamente con "Qualificante";
-    // con rimborso=stake coincide esattamente con "Bonus SNR" — coerenza
+    // con rimborso=stake coincide esattamente con "Freebet SNR" — coerenza
     // verificata algebricamente.
     layStake = (stake * odds - refund) / (layOdds - commission);
     liability = layStake * (layOdds - 1);
     profitIfWins = (stake * (odds - 1)) - liability;
     profitIfLoses = layStake * (1 - commission) - stake + refund;
-    pctValue = refund > 0 ? (Math.min(profitIfWins, profitIfLoses) / refund) * 100 : null;
-    pctLabel = 'Recuperi dal rimborso';
-  } else { // bonus
+  } else { // freebet
     if(bonusType === 'sr'){
       layStake = (stake * odds) / (layOdds - commission);
       liability = layStake * (layOdds - 1);
@@ -873,19 +1050,36 @@ function runPBCalc(){
       profitIfWins = (stake * (odds - 1)) - liability;
       profitIfLoses = layStake * (1 - commission);
     }
-    pctValue = stake > 0 ? (Math.min(profitIfWins, profitIfLoses) / stake) * 100 : null;
-    pctLabel = 'Tasso di estrazione del bonus';
   }
 
   const guaranteed = Math.min(profitIfWins, profitIfLoses);
-  lastPB = {mode, stake, odds, layOdds, commission, refund, bonusType, layStake, liability, profitIfWins, profitIfLoses, guaranteed};
+
+  // Rating: un punteggio a percentuale confrontabile fra modalità diverse.
+  //  - Qualificante/Boost: quanto del capitale rischiato torna indietro
+  //    (100% = pareggio esatto, sotto 100% = piccola perdita di copertura).
+  //  - Rimborso: il rimborso e' la "posta in gioco" concettuale della promo,
+  //    quindi si guarda quanto se ne recupera in percentuale.
+  //  - Bonus/Freebet: la puntata non e' soldi tuoi, quindi si guarda quanto
+  //    se ne estrae in percentuale (tasso di estrazione tipico 70-95%).
+  let rating;
+  if(mode === 'riskfree' && refund > 0){
+    rating = (guaranteed / refund) * 100;
+  } else if(mode === 'bonus' || mode === 'freebet'){
+    rating = stake > 0 ? (guaranteed / stake) * 100 : null;
+  } else {
+    rating = stake > 0 ? 100 * (1 + guaranteed / stake) : null;
+  }
+
+  lastPB = {mode, stake, odds, displayOdds, layOdds, commission, refund, bonusType,
+            boostType, boostPct, boostBonus, layStake, liability, profitIfWins,
+            profitIfLoses, guaranteed, rating};
 
   const cls = guaranteed >= 0 ? 'good' : 'bad';
-  const stakeLabel = mode === 'bonus' ? 'FREE BET' : 'PUNTA';
+  const stakeLabel = mode === 'freebet' ? 'FREE BET' : 'PUNTA';
   document.getElementById('pbResult').innerHTML = `
     <div class="calc-result-visual">
       <div class="result-bar result-bar-punta">
-        <span>${stakeLabel}</span> <b>€${fmt(stake)}</b> <span>a quota</span> <b>${fmt(odds)}</b>
+        <span>${stakeLabel}</span> <b>€${fmt(stake)}</b> <span>a quota</span> <b>${fmt(displayOdds)}</b>
       </div>
       <div class="result-bar result-bar-banca">
         <div><span>BANCA</span> <b>€${fmt(layStake)}</b> <span>a quota</span> <b>${fmt(layOdds)}</b></div>
@@ -893,12 +1087,53 @@ function runPBCalc(){
       </div>
       <div class="result-summary">
         <div class="result-summary-value ${cls}">${euro(guaranteed)}</div>
-        <div class="result-summary-label">Risultato garantito, qualunque sia l'esito</div>
-        ${pctValue !== null ? `<div class="result-summary-sub">${pctLabel}: ${fmt(pctValue)}%</div>` : ''}
+        <div class="result-summary-label">Risultato minimo garantito, qualunque sia l'esito</div>
+        ${rating !== null ? `<div class="result-summary-sub">Rating: ${fmt(rating)}%</div>` : ''}
       </div>
     </div>
     <div class="result-row"><span class="label">Se vince la puntata sul bookmaker</span><span class="val">${euro(profitIfWins)}</span></div>
     <div class="result-row"><span class="label">Se vince la puntata in banca</span><span class="val">${euro(profitIfLoses)}</span></div>
+  `;
+  renderPbScenari(lastPB);
+}
+
+// Ricalcola la copertura residua quando la bancata sull'exchange si e'
+// abbinata solo in parte (o a una quota diversa da quella prevista). Non
+// tocca lo scenario "vince la puntata" (la responsabilita' totale target resta
+// la stessa, cambia solo su quali quote e' stata distribuita), ricalcola solo
+// lo scenario "vince la banca" sommando il payout della parte gia' abbinata
+// (alla vecchia quota) e di quella nuova (alla quota attuale).
+function calcUnmatched(){
+  const el = document.getElementById('pbUnmatchedResult');
+  if(!lastPB){
+    el.style.display = 'block';
+    el.innerHTML = '<div class="empty">Calcola prima una copertura qui sopra.</div>';
+    return;
+  }
+  const filled = parseFloat(document.getElementById('pbUnmatchedFilled').value) || 0;
+  const newOdds = parseFloat(document.getElementById('pbUnmatchedNewOdds').value) || 0;
+  const newCommissionRaw = document.getElementById('pbUnmatchedCommission').value;
+  const newCommission = (newCommissionRaw !== '' ? parseFloat(newCommissionRaw) : lastPB.commission * 100) / 100 || 0;
+
+  if(newOdds <= 1){
+    el.style.display = 'block';
+    el.innerHTML = '<div class="empty">Inserisci la nuova quota disponibile in banca (> 1.00).</div>';
+    return;
+  }
+
+  const originalExchangeContribution = lastPB.layStake * (1 - lastPB.commission);
+  const remainingLiability = Math.max(0, lastPB.liability - (filled * (lastPB.layOdds - 1)));
+  const extraStake = remainingLiability / (newOdds - 1);
+  const totalBanca = filled + extraStake;
+  const totalPayoutIfBookLoses = filled * (1 - lastPB.commission) + extraStake * (1 - newCommission);
+  const newProfitIfLoses = lastPB.profitIfLoses - originalExchangeContribution + totalPayoutIfBookLoses;
+
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="result-row"><span class="label">Banca ancora da piazzare</span><span class="val">€${fmt(extraStake)} @ ${fmt(newOdds)}</span></div>
+    <div class="result-row"><span class="label">Totale banca piazzata (vecchia + nuova)</span><span class="val">€${fmt(totalBanca)}</span></div>
+    <div class="result-row"><span class="label">Nuovo risultato se vince la puntata</span><span class="val">${euro(lastPB.profitIfWins)}</span></div>
+    <div class="result-row"><span class="label">Nuovo risultato se vince la banca</span><span class="val">${euro(newProfitIfLoses)}</span></div>
   `;
 }
 
@@ -906,15 +1141,154 @@ function sendPBToTracker(){
   if(!lastPB){ runPBCalc(); if(!lastPB) return; }
   document.getElementById('betStake').value = fmt(lastPB.stake);
   document.getElementById('betProfit').value = fmt(lastPB.guaranteed);
-  document.getElementById('betType').value =
-    lastPB.mode === 'qualificante' ? 'Qualifying' :
-    lastPB.mode === 'riskfree' ? 'Risk Free' :
-    (lastPB.bonusType === 'sr' ? 'Free bet SR' : 'Free bet SNR');
+  const typeMap = {
+    qualificante: 'Qualifying',
+    riskfree: 'Risk Free',
+    freebet: lastPB.bonusType === 'sr' ? 'Free bet SR' : 'Free bet SNR',
+    bonus: 'Reload',
+    boost: 'Altro',
+  };
+  document.getElementById('betType').value = typeMap[lastPB.mode] || 'Altro';
   document.getElementById('betDate').value = new Date().toISOString().slice(0,10);
   document.querySelector('.tab-btn[data-tab="tracker"]').click();
 }
 
 onPbModeChange();
+
+/* ===================== MATCHED BET (punta+banca collegate) =====================
+   Salva l'ultimo calcolo Punta/Banca (lastPB) come un'unica voce collegata invece
+   che come una riga isolata nel tracker: alla chiusura, scegliendo chi ha vinto,
+   calcola il profitto/perdita di CIASCUN lato separatamente (non solo il risultato
+   aggregato "garantito" mostrato dal calcolatore) e, se i nomi dei conti coincidono
+   con quelli salvati nel tab Account, aggiorna i due saldi in automatico.
+
+   Derivazione dei 4 valori per-lato (bookLegWin/Lose, exchangeLegWin/Lose) a partire
+   dai valori GIA' calcolati da runPBCalc (profitIfWins, profitIfLoses, liability,
+   layStake, commission), validi per tutte e 3 le modalità (qualificante/riskfree/
+   bonus) senza bisogno di reimplementare la logica specifica di ciascuna:
+     - Se vince il bookmaker: la banca perde la responsabilità (exchangeLegWin = -liability)
+       e il resto del risultato aggregato è per forza il lato bookmaker (bookLegWin =
+       profitIfWins - exchangeLegWin).
+     - Se vince la banca: la banca incassa la puntata al netto commissione
+       (exchangeLegLose = layStake*(1-commission), costante in tutte le modalità) e
+       il resto è per forza il lato bookmaker (bookLegLose = profitIfLoses - exchangeLegLose). */
+function saveAsMatchedBet(){
+  if(!lastPB){ runPBCalc(); if(!lastPB) return; }
+  const event = document.getElementById('pbEvent').value.trim() || '(evento non specificato)';
+  const bookAccount = document.getElementById('pbBookAccount').value.trim() || 'Bookmaker';
+  const exchangeAccount = document.getElementById('pbExchangeAccount').value.trim() || 'Banca/Exchange';
+
+  const {bookLegWin, exchangeLegWin, bookLegLose, exchangeLegLose} = pbLegBreakdown(lastPB);
+
+  matchedBets.push({
+    id: Date.now(),
+    date: new Date().toISOString().slice(0,10),
+    event, mode: lastPB.mode,
+    bookAccount, bookStake: lastPB.stake, bookOdds: lastPB.displayOdds,
+    exchangeAccount, layStake: lastPB.layStake, layOdds: lastPB.layOdds,
+    commission: lastPB.commission, liability: lastPB.liability,
+    bookLegWin, bookLegLose, exchangeLegWin, exchangeLegLose,
+    status: 'IN CORSO', outcome: null, profitBook: null, profitExchange: null
+  });
+  save(STORE_KEYS.matchedBets, matchedBets);
+  document.getElementById('pbEvent').value = '';
+  renderMatchedBets();
+  document.querySelector('.tab-btn[data-tab="matchedbets"]').click();
+}
+
+// Applica un delta al saldo del conto con questo nome (case-insensitive), se esiste
+// tra gli account salvati nel tab Account. Se non esiste nessun account con quel
+// nome, non fa nulla: la Matched Bet resta comunque tracciata, solo senza saldo collegato.
+function applyBalanceDelta(accountName, delta){
+  const acc = accounts.find(a => a.book.trim().toLowerCase() === (accountName||'').trim().toLowerCase());
+  if(!acc) return false;
+  acc.balance = (acc.balance || 0) + delta;
+  return true;
+}
+
+function closeMatchedBet(id, outcome){
+  const mb = matchedBets.find(x => x.id === id);
+  if(!mb || mb.status !== 'IN CORSO') return;
+
+  if(outcome === 'void'){
+    mb.status = 'ANNULLATA';
+    mb.outcome = 'void';
+    mb.profitBook = 0;
+    mb.profitExchange = 0;
+  } else {
+    mb.status = 'CHIUSA';
+    mb.outcome = outcome; // 'bookmaker' | 'exchange'
+    mb.profitBook = outcome === 'bookmaker' ? mb.bookLegWin : mb.bookLegLose;
+    mb.profitExchange = outcome === 'bookmaker' ? mb.exchangeLegWin : mb.exchangeLegLose;
+    applyBalanceDelta(mb.bookAccount, mb.profitBook);
+    applyBalanceDelta(mb.exchangeAccount, mb.profitExchange);
+    save(STORE_KEYS.accounts, accounts);
+    renderAccounts();
+  }
+  save(STORE_KEYS.matchedBets, matchedBets);
+  renderMatchedBets();
+}
+
+function deleteMatchedBet(id){
+  matchedBets = matchedBets.filter(x => x.id !== id);
+  save(STORE_KEYS.matchedBets, matchedBets);
+  renderMatchedBets();
+}
+
+function refreshAccountDatalists(){
+  const bookList = document.getElementById('bookAccountsList');
+  const exchList = document.getElementById('exchangeAccountsList');
+  if(!bookList || !exchList) return;
+  bookList.innerHTML = accounts.filter(a=>a.type==='Bookmaker').map(a=>`<option value="${escapeHtml(a.book)}">`).join('');
+  exchList.innerHTML = accounts.filter(a=>a.type==='Exchange').map(a=>`<option value="${escapeHtml(a.book)}">`).join('');
+}
+
+function matchedBetStatusPill(mb){
+  if(mb.status === 'IN CORSO') return '<span class="pill info">In corso</span>';
+  if(mb.status === 'ANNULLATA') return '<span class="pill warn">Annullata</span>';
+  const label = mb.outcome === 'bookmaker' ? 'Chiusa — vinta puntata' : 'Chiusa — vinta copertura';
+  return `<span class="pill ${(mb.profitBook+mb.profitExchange)>=0 ? 'ok' : 'danger'}">${label}</span>`;
+}
+
+function renderMatchedBets(){
+  const tbody = document.querySelector('#matchedBetsTable tbody');
+  tbody.innerHTML = '';
+  document.getElementById('matchedBetsEmpty').style.display = matchedBets.length ? 'none' : 'block';
+
+  [...matchedBets].sort((a,b)=> new Date(b.date)-new Date(a.date)).forEach(mb=>{
+    const tr = document.createElement('tr');
+    const totalPL = mb.status === 'IN CORSO' ? null : (mb.profitBook + mb.profitExchange);
+    const plCell = totalPL === null ? '—' : `<span style="color:${totalPL>=0?'var(--accent)':'var(--danger)'}; font-weight:700;">${euro(totalPL)}</span>`;
+    const actions = mb.status === 'IN CORSO'
+      ? `<div class="mb-actions">
+           <button class="mb-btn win" onclick="closeMatchedBet(${mb.id},'bookmaker')">🏆 Vince puntata</button>
+           <button class="mb-btn win" onclick="closeMatchedBet(${mb.id},'exchange')">🏆 Vince copertura</button>
+           <button class="mb-btn void" onclick="closeMatchedBet(${mb.id},'void')">⭕ Annulla</button>
+           <button class="danger-link" onclick="deleteMatchedBet(${mb.id})">Elimina</button>
+         </div>`
+      : `<button class="danger-link" onclick="deleteMatchedBet(${mb.id})">Elimina</button>`;
+    tr.innerHTML = `
+      <td>${mb.date}</td>
+      <td>${escapeHtml(mb.event)}</td>
+      <td>${escapeHtml(mb.bookAccount)}<br><span style="color:var(--muted); font-size:11.5px;">€${fmt(mb.bookStake)} @ ${fmt(mb.bookOdds)}</span></td>
+      <td>${escapeHtml(mb.exchangeAccount)}<br><span style="color:var(--muted); font-size:11.5px;">€${fmt(mb.layStake)} @ ${fmt(mb.layOdds)}</span></td>
+      <td>€${fmt(mb.liability)}</td>
+      <td>${matchedBetStatusPill(mb)}</td>
+      <td>${plCell}</td>
+      <td>${actions}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const open = matchedBets.filter(m=>m.status==='IN CORSO').length;
+  const closed = matchedBets.filter(m=>m.status==='CHIUSA');
+  const closedProfit = closed.reduce((s,m)=>s+m.profitBook+m.profitExchange, 0);
+  document.getElementById('matchedBetsSummary').innerHTML = `
+    <div class="stat"><div class="num">${open}</div><div class="lbl">Matched Bet aperte</div></div>
+    <div class="stat"><div class="num">${closed.length}</div><div class="lbl">Matched Bet chiuse</div></div>
+    <div class="stat"><div class="num" style="color:${closedProfit>=0?'var(--accent)':'var(--danger)'}">${euro(closedProfit)}</div><div class="lbl">Profitto totale (chiuse)</div></div>
+  `;
+}
 
 /* ===================== CALCOLATORE PUNTA/PUNTA (3 modalità, 2 o 3 esiti) ===================== */
 // Qualificante: distribuisce uno stake totale su tutti gli esiti in proporzione
@@ -1619,6 +1993,7 @@ function renderAccounts(){
   const tbody = document.querySelector('#accountsTable tbody');
   tbody.innerHTML = '';
   document.getElementById('accountsEmpty').style.display = accounts.length ? 'none' : 'block';
+  refreshAccountDatalists();
 
   accounts.forEach(a=>{
     const tr = document.createElement('tr');
@@ -1635,6 +2010,7 @@ function renderAccounts(){
   });
 }
 renderAccounts();
+renderMatchedBets();
 
 /* ===================== STRATEGIA SLOT ===================== */
 function populateStratOfferSelect(){
@@ -1932,6 +2308,7 @@ function exportBackup(){
     bets,
     offers,
     accounts,
+    matchedBets,
     profile: collectProfileInputs()
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
@@ -1985,26 +2362,31 @@ function importBackup(mode){
     const incomingBets = Array.isArray(data.bets) ? data.bets : [];
     const incomingOffers = Array.isArray(data.offers) ? data.offers : [];
     const incomingAccounts = Array.isArray(data.accounts) ? data.accounts : [];
+    const incomingMatchedBets = Array.isArray(data.matchedBets) ? data.matchedBets : [];
 
     if(mode === 'replace'){
       bets = incomingBets.slice();
       offers = incomingOffers.slice();
       accounts = incomingAccounts.slice();
+      matchedBets = incomingMatchedBets.slice();
       applyProfileInputs(data.profile);
-      statusEl.textContent = `Dati sostituiti: ${bets.length} scommesse, ${offers.length} offerte, ${accounts.length} account.`;
+      statusEl.textContent = `Dati sostituiti: ${bets.length} scommesse, ${offers.length} offerte, ${accounts.length} account, ${matchedBets.length} matched bet.`;
     } else {
       const addedBets = mergeById(bets, incomingBets);
       const addedOffers = mergeById(offers, incomingOffers);
       const addedAccounts = mergeById(accounts, incomingAccounts);
-      statusEl.textContent = `Uniti: +${addedBets} scommesse, +${addedOffers} offerte, +${addedAccounts} account.`;
+      const addedMatchedBets = mergeById(matchedBets, incomingMatchedBets);
+      statusEl.textContent = `Uniti: +${addedBets} scommesse, +${addedOffers} offerte, +${addedAccounts} account, +${addedMatchedBets} matched bet.`;
     }
 
     save(STORE_KEYS.bets, bets);
     save(STORE_KEYS.offers, offers);
     save(STORE_KEYS.accounts, accounts);
+    save(STORE_KEYS.matchedBets, matchedBets);
     renderBets();
     renderOffers();
     renderAccounts();
+    renderMatchedBets();
     populateStratOfferSelect();
     statusEl.style.color = 'var(--accent)';
   };
