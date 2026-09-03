@@ -149,6 +149,30 @@
   .mb-btn.void{border-color:var(--warn); color:var(--warn);}
   .mb-btn.void:hover{background:rgba(242,184,75,.12);}
 
+  /* ---- MultiOdds (multipla con copertura sequenziale) ---- */
+  .mo-sel{
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px;
+    padding:14px; margin-bottom:12px; position:relative;
+  }
+  .mo-sel.active{border-color:var(--accent2);}
+  .mo-sel.locked{border-color:var(--accent); background:rgba(61,220,151,.06);}
+  .mo-sel.lost{opacity:.55;}
+  .mo-sel-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .mo-sel-num{
+    display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px;
+    border-radius:50%; background:var(--panel); border:1px solid var(--border); font-size:11px; font-weight:700; color:var(--muted);
+  }
+  .mo-sel.active .mo-sel-num{border-color:var(--accent2); color:var(--accent2);}
+  .mo-sel-actions{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+  .mo-warning{
+    background:rgba(242,184,75,.1); border:1px solid var(--warn); color:var(--warn);
+    border-radius:8px; padding:8px 12px; font-size:12.5px; margin-top:8px;
+  }
+  .mo-list-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px;
+  }
+
   /* ---- Card anteprima offerte ---- */
   .offer-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px;}
   .offer-card{
@@ -205,6 +229,61 @@
   .modal-section h4{margin:0 0 6px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px;}
   .modal-terms{font-size:13px; line-height:1.6; white-space:pre-wrap; color:var(--text);}
   .modal-actions{display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;}
+
+  /* ============ RESPONSIVE / MOBILE ============ */
+  @media (max-width:680px){
+    header{padding:14px 16px; gap:6px;}
+    header h1{font-size:17px;}
+    header .sub{font-size:12px;}
+    nav{padding:10px 12px; gap:5px;}
+    nav button{padding:8px 11px; font-size:12.5px;}
+    main{padding:16px 12px 48px;}
+    .card{padding:15px 14px; margin-bottom:16px; border-radius:10px;}
+    .card h2{font-size:15px;}
+    .card h3{margin-top:16px;}
+
+    /* campi in coppia: uno sotto l'altro, niente sovrapposizioni */
+    .row{flex-wrap:wrap; gap:0;}
+    .row > div{flex:1 1 100%;}
+
+    /* font >=16px evita lo zoom automatico di iOS quando si tocca un campo */
+    input, select{font-size:16px; padding:10px 11px;}
+    label{font-size:12.5px; margin-top:14px;}
+
+    /* selettore modalità: va a capo invece di schiacciare il testo */
+    .mode-selector{flex-wrap:wrap; border:none; gap:6px; overflow:visible;}
+    .mode-option{
+      flex:1 1 calc(33.333% - 4px); border:1px solid var(--border);
+      border-radius:8px; padding:10px 6px; font-size:12px;
+    }
+    .mode-option:last-child{border-right:1px solid var(--border);}
+
+    .result-row{flex-wrap:wrap; gap:0 8px;}
+    .result-summary-value{font-size:24px;}
+    .result-bar{font-size:12.5px; padding:11px 13px;}
+
+    .form-actions, .modal-actions{flex-wrap:wrap;}
+    .form-actions button, .modal-actions button{flex:1 1 auto;}
+
+    .summary-grid{grid-template-columns:1fr 1fr; gap:10px;}
+    .stat{padding:13px;}
+    .stat .num{font-size:20px;}
+
+    .offer-grid{grid-template-columns:1fr;}
+
+    table{font-size:12px;}
+    th, td{padding:7px 8px;}
+
+    .modal-overlay{padding:10px;}
+    .modal-body{padding:16px 15px 18px;}
+    .modal-facts{grid-template-columns:1fr 1fr;}
+  }
+
+  @media (max-width:380px){
+    .mode-option{flex-basis:calc(50% - 3px);}
+    .summary-grid, .modal-facts{grid-template-columns:1fr;}
+    nav button{flex:1 1 calc(50% - 4px); text-align:center;}
+  }
 </style>
 </head>
 <body>
@@ -215,13 +294,14 @@
     <div class="sub">Prototipo — calcolatore, tracker profitti, gestione offerte e account</div>
   </div>
   <div style="font-size:12px;color:var(--muted)">Dati salvati solo in questo browser (localStorage)</div>
-  <div style="font-size:11px;color:var(--muted);opacity:.7;margin-top:2px;" title="Se dopo un aggiornamento questa data non cambia, il browser sta mostrando una versione in cache: prova a ricaricare tenendo premuto il pulsante di refresh, o cancella la cache del sito.">Versione app: 2026-08-16</div>
+  <div style="font-size:11px;color:var(--muted);opacity:.7;margin-top:2px;" title="Se dopo un aggiornamento questa data non cambia, il browser sta mostrando una versione in cache: prova a ricaricare tenendo premuto il pulsante di refresh, o cancella la cache del sito.">Versione app: 2026-09-03</div>
 </header>
 
 <nav>
   <button class="tab-btn active" data-tab="calc">🧮 Calcolatore</button>
   <button class="tab-btn" data-tab="tracker">📊 Tracker</button>
   <button class="tab-btn" data-tab="matchedbets">🔗 Matched Bet</button>
+  <button class="tab-btn" data-tab="multiodds">🧩 MultiOdds</button>
   <button class="tab-btn" data-tab="offers">🎁 Offerte</button>
   <button class="tab-btn" data-tab="accounts">👤 Account</button>
   <button class="tab-btn" data-tab="slotstrategy">🎰 Strategia Slot</button>
@@ -548,6 +628,87 @@
     </div>
   </div>
 
+  <!-- ===================== MULTIODDS (multipla con copertura sequenziale) ===================== -->
+  <div class="tabpage" id="tab-multiodds">
+    <div class="card">
+      <h2>🧩 MultiOdds</h2>
+      <p style="color:var(--muted); font-size:13px; line-height:1.6; margin-top:0;">
+        Costruisci una multipla (accumulatore) su un bookmaker e coprila <b>una selezione alla volta</b>:
+        piazzi l'intera multipla, ma copri — in banca su un exchange, o in punta su un altro bookmaker —
+        solo la prima selezione ancora in corso. Se quella selezione vince, la multipla resta viva e passi
+        a coprire la successiva; se perde, la multipla è già persa e non serve altro. Segna il risultato di
+        ogni selezione appena lo conosci: la copertura da piazzare per la prossima si aggiorna da sola. Le
+        quote le inserisci tu a mano — non c'è scansione automatica dei bookmaker.
+      </p>
+
+      <div class="row">
+        <div>
+          <label>Nome multipla</label>
+          <input type="text" id="moName" placeholder="es. Multipla Serie A 4 selezioni" oninput="scheduleMoSave()">
+        </div>
+        <div>
+          <label>Bookmaker</label>
+          <input type="text" id="moBookmaker" list="bookAccountsList" placeholder="es. Bet365" oninput="scheduleMoSave()">
+        </div>
+      </div>
+
+      <div class="mode-selector" id="moModeSelector">
+        <label class="mode-option active"><input type="radio" name="moMode" value="reale" checked onchange="onMoModeChange()"><span>Reale</span></label>
+        <label class="mode-option"><input type="radio" name="moMode" value="freebet" onchange="onMoModeChange()"><span>Freebet</span></label>
+        <label class="mode-option"><input type="radio" name="moMode" value="rimborso" onchange="onMoModeChange()"><span>Rimborso</span></label>
+      </div>
+
+      <div class="row">
+        <div>
+          <label id="moStakeLabel">Importo multipla (€)</label>
+          <input type="number" id="moStake" value="20" step="0.01" min="0" oninput="renderMultiOdds()">
+        </div>
+        <div id="moRefundCol" style="display:none;">
+          <label>Rimborso se perde (€)</label>
+          <input type="number" id="moRefund" value="20" step="0.01" min="0" oninput="renderMultiOdds()">
+        </div>
+        <div id="moBonusTypeCol" style="display:none;">
+          <label>La freebet, se vince, restituisce anche la puntata?</label>
+          <select id="moBonusType" onchange="renderMultiOdds()">
+            <option value="snr">No, solo la vincita</option>
+            <option value="sr">Sì, torna anche la puntata</option>
+          </select>
+        </div>
+      </div>
+
+      <h3 style="margin-top:20px;">Selezioni</h3>
+      <div id="moSelections"></div>
+      <div class="empty" id="moSelectionsEmpty">Nessuna selezione ancora: aggiungine una per iniziare a costruire la multipla.</div>
+      <button class="ghost" onclick="addMoSelection()">➕ Aggiungi selezione</button>
+      <div id="moWarning"></div>
+    </div>
+
+    <div class="summary-grid" id="moSummary"></div>
+
+    <div class="card">
+      <h2>Scenari</h2>
+      <p style="color:var(--muted); font-size:12.5px; margin:-6px 0 14px;">Cosa succede in ciascun possibile esito della multipla, in base alle quote e alle coperture attuali (o bloccate, se già piazzate).</p>
+      <div class="table-wrap">
+        <table id="moScenariTable">
+          <thead><tr><th>Scenario</th><th>Risultato</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="empty" id="moScenariEmpty">Aggiungi almeno una selezione per vedere gli scenari.</div>
+    </div>
+
+    <div class="form-actions" style="margin:0 0 20px;">
+      <button class="primary" onclick="saveMultiOdds()">💾 Salva multipla</button>
+      <button class="ghost" onclick="newMultiOdds()">🆕 Nuova multipla</button>
+    </div>
+
+    <div class="card">
+      <h2>Multiple salvate</h2>
+      <div id="moSavedList"></div>
+      <div class="empty" id="moSavedEmpty">Nessuna multipla salvata ancora.</div>
+    </div>
+  </div>
+
   <!-- ===================== OFFERTE ===================== -->
   <div class="tabpage" id="tab-offers">
     <div class="card">
@@ -848,7 +1009,7 @@
       <h3>1. Su questo PC: esporta</h3>
       <button class="primary" onclick="exportBackup()">⬇️ Esporta tutti i dati (backup.json)</button>
       <p class="field-hint">Scarica un file <code>matchbetting_backup.json</code> con scommesse,
-        offerte, account, matched bet e profilo. Copialo insieme al file <code>MatchBetting_Assistant.html</code>
+        offerte, account, matched bet, multiple MultiOdds e profilo. Copialo insieme al file <code>MatchBetting_Assistant.html</code>
         (e agli script dello scraper, se li usi) su una chiavetta USB, cloud o email.</p>
 
       <h3 style="margin-top:24px;">2. Sull'altro PC: importa</h3>
@@ -891,7 +1052,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 });
 
 /* ---------- Storage helpers ---------- */
-const STORE_KEYS = {bets:'mba_bets', offers:'mba_offers', accounts:'mba_accounts', matchedBets:'mba_matchedbets'};
+const STORE_KEYS = {bets:'mba_bets', offers:'mba_offers', accounts:'mba_accounts', matchedBets:'mba_matchedbets', multiOdds:'mba_multiodds'};
 function load(key){ try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; } }
 function save(key, data){ localStorage.setItem(key, JSON.stringify(data)); }
 
@@ -899,6 +1060,8 @@ let bets = load(STORE_KEYS.bets);
 let offers = load(STORE_KEYS.offers);
 let accounts = load(STORE_KEYS.accounts);
 let matchedBets = load(STORE_KEYS.matchedBets);
+let multiOddsSaved = load(STORE_KEYS.multiOdds);
+let currentMo = null; // la multipla MultiOdds attualmente in modifica (vedi sezione dedicata più sotto)
 
 const fmt = n => (Math.round(n*100)/100).toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:2});
 const euro = n => (n>=0?'+':'') + '€' + fmt(n);
@@ -1289,6 +1452,444 @@ function renderMatchedBets(){
     <div class="stat"><div class="num" style="color:${closedProfit>=0?'var(--accent)':'var(--danger)'}">${euro(closedProfit)}</div><div class="lbl">Profitto totale (chiuse)</div></div>
   `;
 }
+
+/* ===================== MULTIODDS (multipla con copertura sequenziale) =====================
+   Una multipla vince solo se TUTTE le selezioni vincono: se una perde, l'intera
+   multipla è persa. Per questo non si copre tutta insieme, ma UNA selezione alla
+   volta — solo la prima ancora "in corso" — usando come "puntata" l'importo che
+   sarebbe effettivamente a rischio se quella selezione perdesse (cioè l'importo
+   della multipla moltiplicato per le quote di tutte le selezioni GIA' vinte prima
+   di essa). Ogni selezione può essere coperta in banca (bancata sull'exchange,
+   stessa logica del calcolatore Punta/Banca) o in punta (contropuntata su un altro
+   bookmaker, stessa logica del calcolatore Punta/Punta a 2 esiti).
+
+   Le quote non vengono lette da nessun bookmaker in automatico (a differenza dello
+   strumento MultiOdds "vero" online, che integra un OddsMatcher live): qui si
+   inseriscono a mano, coerentemente con il resto dell'app che non ha una fonte di
+   quote in tempo reale, solo lo scraper delle promozioni.
+
+   Le funzioni "pure" qui sotto (moTotalOdds, moSelectionCover, moScenarios, ecc.)
+   non toccano il DOM e sono facilmente testabili da sole. */
+
+function newMoDraft(){
+  return {id:null, name:'', bookmaker:'', mode:'reale', bonusType:'snr', refund:20, stake:20, selections:[]};
+}
+
+function moTotalOdds(mo){
+  return mo.selections.reduce((p,s)=> p * (parseFloat(s.odds) || 0), 1);
+}
+
+// Importo che sarebbe "in gioco" quando la selezione idx (0-based) diventa
+// attiva, cioè l'importo della multipla moltiplicato per le quote di tutte le
+// selezioni precedenti (che devono essere vinte perché si arrivi a quel punto).
+function moEffectiveStakeAt(mo, idx){
+  let s = mo.stake;
+  for(let i = 0; i < idx; i++) s *= (parseFloat(mo.selections[i].odds) || 0);
+  return s;
+}
+
+// Calcola la copertura per la selezione idx: se è bloccata (già piazzata) usa
+// l'importo realmente piazzato (lockedStake) invece di ricalcolarlo dalle quote
+// attuali, cosi' gli scenari restano coerenti con cosa è stato davvero fatto.
+function moSelectionCover(mo, idx){
+  const sel = mo.selections[idx];
+  const odds = parseFloat(sel.odds) || 0;
+  const coverOdds = parseFloat(sel.coverOdds) || 0;
+  const commission = (parseFloat(sel.commission) || 0) / 100;
+
+  if(sel.coverType === 'banca'){
+    let coverStake;
+    if(sel.locked && sel.lockedStake != null) coverStake = sel.lockedStake;
+    else if(coverOdds <= commission || coverOdds <= 1 || odds <= 1) coverStake = 0;
+    else coverStake = moEffectiveStakeAt(mo, idx) * odds / (coverOdds - commission);
+    const liability = coverStake * (coverOdds - 1);
+    return {coverStake, liability, resultIfLegWins: -liability, resultIfLegLoses: coverStake * (1 - commission)};
+  }
+  // punta: contropuntata sull'esito opposto presso un altro bookmaker (dutching
+  // a 2 vie) — nessuna commissione, la "responsabilità" è semplicemente la
+  // contropuntata stessa (è il massimo che puoi perdere su quella copertura).
+  let coverStake;
+  if(sel.locked && sel.lockedStake != null) coverStake = sel.lockedStake;
+  else if(coverOdds <= 1 || odds <= 1) coverStake = 0;
+  else coverStake = moEffectiveStakeAt(mo, idx) * odds / coverOdds;
+  return {coverStake, liability: coverStake, resultIfLegWins: -coverStake, resultIfLegLoses: coverStake * (coverOdds - 1)};
+}
+
+// Risultato lato bookmaker se TUTTE le selezioni vincono (multipla pagata per intero).
+function moBookmakerResultIfAllWin(mo){
+  const stake = mo.stake, totalOdds = moTotalOdds(mo);
+  if(mo.mode === 'freebet') return mo.bonusType === 'sr' ? stake * totalOdds : stake * (totalOdds - 1);
+  return stake * (totalOdds - 1); // reale o rimborso: soldi veri, profitto netto
+}
+
+// Risultato lato bookmaker se la multipla viene persa (a una qualsiasi selezione:
+// e' lo stesso importo indipendentemente da QUALE selezione la fa perdere).
+function moBookmakerResultIfFails(mo){
+  if(mo.mode === 'freebet') return 0; // non erano soldi tuoi
+  if(mo.mode === 'rimborso') return (parseFloat(mo.refund) || 0) - mo.stake;
+  return -mo.stake; // reale
+}
+
+function moFirstPendingIndex(mo){
+  return mo.selections.findIndex(s => s.status === 'pending');
+}
+function moIsDead(mo){
+  return mo.selections.some(s => s.status === 'lost');
+}
+
+// Un "sotto-scenario" per ciascuna selezione k: la multipla perde proprio li'.
+// Le selezioni prima di k hanno vinto (quindi le loro coperture sono PERSE,
+// perche' avevi scommesso contro la tua stessa selezione per coprirti), la
+// selezione k ha perso (quindi la sua copertura ha VINTO). Piu' uno scenario
+// finale in cui vincono tutte (tutte le coperture perse, ma incassi la multipla).
+function moScenarios(mo){
+  const n = mo.selections.length;
+  const results = [];
+  if(n === 0) return results;
+  for(let k = 0; k < n; k++){
+    let total = moBookmakerResultIfFails(mo);
+    for(let i = 0; i < k; i++) total += moSelectionCover(mo, i).resultIfLegWins;
+    total += moSelectionCover(mo, k).resultIfLegLoses;
+    results.push({label: `Perde alla selezione ${k + 1}`, total});
+  }
+  let totalAllWin = moBookmakerResultIfAllWin(mo);
+  for(let i = 0; i < n; i++) totalAllWin += moSelectionCover(mo, i).resultIfLegWins;
+  results.push({label: 'Tutte le selezioni vincono', total: totalAllWin});
+  return results;
+}
+
+// ---- Rendering e interazione (queste toccano il DOM) ----
+
+function onMoModeChange(){
+  currentMo.mode = document.querySelector('input[name="moMode"]:checked').value;
+  document.querySelectorAll('#moModeSelector .mode-option').forEach(opt => {
+    opt.classList.toggle('active', opt.querySelector('input').checked);
+  });
+  document.getElementById('moRefundCol').style.display = currentMo.mode === 'rimborso' ? 'block' : 'none';
+  document.getElementById('moBonusTypeCol').style.display = currentMo.mode === 'freebet' ? 'block' : 'none';
+  document.getElementById('moStakeLabel').textContent = currentMo.mode === 'freebet' ? 'Valore della free bet (€)' : 'Importo multipla (€)';
+  renderMultiOddsResults();
+}
+
+// Legge i valori attualmente digitati nelle righe delle selezioni e li scrive
+// nel modello currentMo.selections. Usata prima di ogni ricalcolo per non
+// perdere quello che l'utente ha scritto, senza dover ricostruire le righe ad
+// ogni tasto premuto (che farebbe perdere il focus dal campo di input).
+function collectMoSelectionsFromDom(){
+  document.querySelectorAll('#moSelections [data-mo-field]').forEach(el => {
+    const idx = parseInt(el.dataset.moIdx, 10);
+    const field = el.dataset.moField;
+    if(!currentMo.selections[idx]) return;
+    currentMo.selections[idx][field] = el.value;
+  });
+}
+
+function scheduleMoSave(){
+  currentMo.name = document.getElementById('moName').value;
+  currentMo.bookmaker = document.getElementById('moBookmaker').value;
+  currentMo.stake = parseFloat(document.getElementById('moStake').value) || 0;
+  currentMo.refund = parseFloat(document.getElementById('moRefund').value) || 0;
+  currentMo.bonusType = document.getElementById('moBonusType').value;
+}
+
+function addMoSelection(){
+  collectMoSelectionsFromDom();
+  currentMo.selections.push({
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    event: '', datetime: '', odds: '2.00',
+    coverType: 'banca', coverOdds: '2.02', commission: '2', account: '',
+    status: 'pending', locked: false, lockedStake: null
+  });
+  renderMultiOdds();
+}
+
+function removeMoSelection(i){
+  collectMoSelectionsFromDom();
+  currentMo.selections.splice(i, 1);
+  renderMultiOdds();
+}
+
+function onMoCoverTypeChange(i, value){
+  collectMoSelectionsFromDom();
+  currentMo.selections[i].coverType = value;
+  renderMultiOdds();
+}
+
+function toggleMoLock(i){
+  collectMoSelectionsFromDom();
+  const s = currentMo.selections[i];
+  if(s.locked){
+    s.locked = false;
+    s.lockedStake = null;
+  } else {
+    s.locked = true;
+    s.lockedStake = moSelectionCover(currentMo, i).coverStake;
+  }
+  renderMultiOdds();
+}
+
+function setMoStatus(i, value){
+  collectMoSelectionsFromDom();
+  currentMo.selections[i].status = value;
+  renderMultiOdds();
+}
+
+// Ordina le selezioni per orario, ma solo se nessuna e' ancora stata risolta
+// (per non rimescolare lo storico dopo che una selezione e' vinta o persa).
+function sortMoSelectionsByDatetime(){
+  if(currentMo.selections.some(s => s.status !== 'pending')) return;
+  currentMo.selections.sort((a, b) => {
+    if(!a.datetime) return 1;
+    if(!b.datetime) return -1;
+    return new Date(a.datetime) - new Date(b.datetime);
+  });
+}
+
+function renderMoSelectionRows(){
+  const wrap = document.getElementById('moSelections');
+  const emptyEl = document.getElementById('moSelectionsEmpty');
+  const sels = currentMo.selections;
+  emptyEl.style.display = sels.length ? 'none' : 'block';
+  const activeIdx = moFirstPendingIndex(currentMo);
+  const dead = moIsDead(currentMo);
+
+  wrap.innerHTML = sels.map((s, i) => {
+    const isActive = !dead && i === activeIdx;
+    const cls = s.status === 'lost' ? 'lost' : (s.locked ? 'locked' : (isActive ? 'active' : ''));
+    const cover = moSelectionCover(currentMo, i);
+    const coverNote = s.locked
+      ? `<span class="pill ok">Copertura bloccata: €${fmt(s.lockedStake || 0)}</span>`
+      : (isActive
+          ? `<span class="pill info">Copertura da piazzare ora: €${fmt(cover.coverStake)}</span>`
+          : `<span class="pill warn">Provvisoria (si aggiorna quando diventa attiva): €${fmt(cover.coverStake)}</span>`);
+    const stateLabel = s.status === 'won' ? 'Vinta' : (s.status === 'lost' ? 'Persa — multipla finita qui' : (isActive ? 'Selezione attiva' : 'In attesa'));
+    return `
+      <div class="mo-sel ${cls}">
+        <div class="mo-sel-head">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="mo-sel-num">${i + 1}</span>
+            <strong>${stateLabel}</strong>
+          </div>
+          <div class="mo-sel-actions">
+            <select onchange="setMoStatus(${i}, this.value)">
+              <option value="pending" ${s.status === 'pending' ? 'selected' : ''}>In corso</option>
+              <option value="won" ${s.status === 'won' ? 'selected' : ''}>Vinta</option>
+              <option value="lost" ${s.status === 'lost' ? 'selected' : ''}>Persa</option>
+            </select>
+            <button class="mb-btn ${s.locked ? 'win' : ''}" onclick="toggleMoLock(${i})">${s.locked ? '🔓 Sblocca' : '🔒 Blocca copertura'}</button>
+            <button class="danger-link" onclick="removeMoSelection(${i})">Elimina</button>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Evento</label>
+            <input type="text" data-mo-field="event" data-mo-idx="${i}" value="${escapeHtml(s.event)}" placeholder="es. Juventus - Milan" onchange="renderMultiOddsResults()">
+          </div>
+          <div>
+            <label>Data e ora</label>
+            <input type="datetime-local" data-mo-field="datetime" data-mo-idx="${i}" value="${s.datetime || ''}" onchange="renderMultiOddsResults()">
+          </div>
+          <div>
+            <label>Quota bookmaker</label>
+            <input type="number" data-mo-field="odds" data-mo-idx="${i}" value="${s.odds}" step="0.01" min="1.01" onchange="renderMultiOddsResults()">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Tipo copertura</label>
+            <select onchange="onMoCoverTypeChange(${i}, this.value)">
+              <option value="banca" ${s.coverType === 'banca' ? 'selected' : ''}>Banca (exchange)</option>
+              <option value="punta" ${s.coverType === 'punta' ? 'selected' : ''}>Punta (altro bookmaker)</option>
+            </select>
+          </div>
+          <div>
+            <label>Quota copertura</label>
+            <input type="number" data-mo-field="coverOdds" data-mo-idx="${i}" value="${s.coverOdds}" step="0.01" min="1.01" onchange="renderMultiOddsResults()">
+          </div>
+          ${s.coverType === 'banca' ? `
+          <div>
+            <label>Commissione (%)</label>
+            <input type="number" data-mo-field="commission" data-mo-idx="${i}" value="${s.commission}" step="0.1" min="0" onchange="renderMultiOddsResults()">
+          </div>` : ''}
+          <div>
+            <label>Conto copertura</label>
+            <input type="text" data-mo-field="account" data-mo-idx="${i}" value="${escapeHtml(s.account)}" list="exchangeAccountsList" placeholder="es. Betfair Exchange" onchange="renderMultiOddsResults()">
+          </div>
+        </div>
+        <div style="margin-top:8px;">${coverNote}</div>
+      </div>
+    `;
+  }).join('');
+
+  renderMultiOddsResults();
+}
+
+function renderMultiOddsResults(){
+  collectMoSelectionsFromDom();
+  scheduleMoSave();
+  const mo = currentMo;
+  const n = mo.selections.length;
+
+  // Avviso se due selezioni consecutive (con data/ora inserita) sono a meno
+  // di 3 ore l'una dall'altra: potrebbe non esserci tempo per aggiornare la
+  // copertura tra la fine di un evento e l'inizio del successivo.
+  const warnEl = document.getElementById('moWarning');
+  const withDates = mo.selections
+    .map((s, i) => ({i, t: s.datetime ? new Date(s.datetime).getTime() : null}))
+    .filter(x => x.t !== null && !isNaN(x.t));
+  const warnings = [];
+  for(let k = 1; k < withDates.length; k++){
+    const gap = withDates[k].t - withDates[k - 1].t;
+    if(gap >= 0 && gap < 3 * 60 * 60 * 1000){
+      warnings.push(`Le selezioni ${withDates[k - 1].i + 1} e ${withDates[k].i + 1} sono a meno di 3 ore di distanza: potresti non fare in tempo ad aggiornare la copertura tra un evento e l'altro.`);
+    }
+  }
+  warnEl.innerHTML = warnings.map(w => `<div class="mo-warning">⚠️ ${w}</div>`).join('');
+
+  const scenariEmptyEl = document.getElementById('moScenariEmpty');
+  if(n === 0){
+    document.getElementById('moSummary').innerHTML = '';
+    scenariEmptyEl.style.display = 'block';
+    document.querySelector('#moScenariTable tbody').innerHTML = '';
+    return;
+  }
+  scenariEmptyEl.style.display = 'none';
+
+  const totalOdds = moTotalOdds(mo);
+  const activeIdx = moFirstPendingIndex(mo);
+  const dead = moIsDead(mo);
+  const scenarios = moScenarios(mo);
+  const guaranteed = Math.min(...scenarios.map(s => s.total));
+  const refund = parseFloat(mo.refund) || 0;
+
+  let rating;
+  if(mo.mode === 'rimborso' && refund > 0) rating = (guaranteed / refund) * 100;
+  else if(mo.mode === 'freebet') rating = mo.stake > 0 ? (guaranteed / mo.stake) * 100 : null;
+  else rating = mo.stake > 0 ? 100 * (1 + guaranteed / mo.stake) : null;
+
+  const totalCapital = mo.selections.reduce((s, _, i) => s + moSelectionCover(mo, i).liability, 0);
+
+  let activeCoverHtml;
+  if(dead){
+    activeCoverHtml = 'Multipla già persa: nessuna copertura da piazzare.';
+  } else if(activeIdx === -1){
+    activeCoverHtml = 'Tutte le selezioni sono vinte: multipla conclusa! 🎉';
+  } else {
+    const c = moSelectionCover(mo, activeIdx);
+    const s = mo.selections[activeIdx];
+    activeCoverHtml = `Selezione ${activeIdx + 1}${s.event ? ' (' + escapeHtml(s.event) + ')' : ''}: piazza ${s.coverType === 'banca' ? 'in banca' : 'in punta'} <b>€${fmt(c.coverStake)}</b> a quota <b>${fmt(parseFloat(s.coverOdds) || 0)}</b>${s.coverType === 'banca' ? ` (responsabilità €${fmt(c.liability)})` : ''}.`;
+  }
+
+  document.getElementById('moSummary').innerHTML = `
+    <div class="stat"><div class="num">${fmt(totalOdds)}</div><div class="lbl">Quota totale multipla</div></div>
+    <div class="stat"><div class="num" style="color:${guaranteed >= 0 ? 'var(--accent)' : 'var(--danger)'}">${euro(guaranteed)}</div><div class="lbl">Risultato minimo garantito</div></div>
+    <div class="stat"><div class="num">${rating !== null ? fmt(rating) + '%' : '—'}</div><div class="lbl">Rating</div></div>
+    <div class="stat"><div class="num">€${fmt(totalCapital)}</div><div class="lbl">Capitale totale (coperture)</div></div>
+  `;
+
+  document.querySelector('#moScenariTable tbody').innerHTML =
+    scenarios.map(s => `<tr><td>${s.label}</td><td style="color:${s.total >= 0 ? 'var(--accent)' : 'var(--danger)'}; font-weight:700;">${euro(s.total)}</td></tr>`).join('') +
+    `<tr><td colspan="2" style="border-top:2px solid var(--border); padding-top:12px; color:var(--text);">${activeCoverHtml}</td></tr>`;
+}
+
+function renderMultiOdds(){
+  sortMoSelectionsByDatetime();
+  renderMoSelectionRows();
+}
+
+function saveMultiOdds(){
+  collectMoSelectionsFromDom();
+  scheduleMoSave();
+  if(!currentMo.name){
+    currentMo.name = currentMo.bookmaker
+      ? `Multipla ${currentMo.bookmaker} — ${currentMo.selections.length} selezioni`
+      : `Multipla ${currentMo.selections.length} selezioni`;
+    document.getElementById('moName').value = currentMo.name;
+  }
+  if(currentMo.id == null){
+    currentMo.id = Date.now();
+    multiOddsSaved.push(currentMo);
+  } else {
+    const idx = multiOddsSaved.findIndex(m => m.id === currentMo.id);
+    if(idx >= 0) multiOddsSaved[idx] = currentMo; else multiOddsSaved.push(currentMo);
+  }
+  save(STORE_KEYS.multiOdds, multiOddsSaved);
+  renderMoSavedList();
+}
+
+function newMultiOdds(){
+  currentMo = newMoDraft();
+  document.getElementById('moName').value = '';
+  document.getElementById('moBookmaker').value = '';
+  document.getElementById('moStake').value = 20;
+  document.getElementById('moRefund').value = 20;
+  document.querySelector('input[name="moMode"][value="reale"]').checked = true;
+  onMoModeChange();
+  renderMultiOdds();
+}
+
+function loadMultiOdds(id){
+  const mo = multiOddsSaved.find(m => m.id === id);
+  if(!mo) return;
+  currentMo = JSON.parse(JSON.stringify(mo)); // copia: le modifiche non salvate non toccano l'elenco finché non premi di nuovo "Salva"
+  document.getElementById('moName').value = currentMo.name || '';
+  document.getElementById('moBookmaker').value = currentMo.bookmaker || '';
+  document.getElementById('moStake').value = currentMo.stake;
+  document.getElementById('moRefund').value = currentMo.refund;
+  document.getElementById('moBonusType').value = currentMo.bonusType || 'snr';
+  document.querySelector(`input[name="moMode"][value="${currentMo.mode}"]`).checked = true;
+  onMoModeChange();
+  renderMultiOdds();
+  document.querySelector('.tab-btn[data-tab="multiodds"]').click();
+}
+
+function deleteMultiOdds(id){
+  multiOddsSaved = multiOddsSaved.filter(m => m.id !== id);
+  save(STORE_KEYS.multiOdds, multiOddsSaved);
+  renderMoSavedList();
+  if(currentMo.id === id) newMultiOdds();
+}
+
+function duplicateMultiOdds(id){
+  const mo = multiOddsSaved.find(m => m.id === id);
+  if(!mo) return;
+  const copy = JSON.parse(JSON.stringify(mo));
+  copy.id = Date.now();
+  copy.name = (copy.name || 'Multipla') + ' (copia)';
+  copy.selections.forEach(s => { s.status = 'pending'; s.locked = false; s.lockedStake = null; });
+  multiOddsSaved.push(copy);
+  save(STORE_KEYS.multiOdds, multiOddsSaved);
+  renderMoSavedList();
+}
+
+function renderMoSavedList(){
+  const wrap = document.getElementById('moSavedList');
+  const emptyEl = document.getElementById('moSavedEmpty');
+  emptyEl.style.display = multiOddsSaved.length ? 'none' : 'block';
+  wrap.innerHTML = multiOddsSaved.map(mo => {
+    const dead = moIsDead(mo);
+    const activeIdx = moFirstPendingIndex(mo);
+    const statusLabel = dead ? 'Persa' : (activeIdx === -1 ? 'Vinta' : `In corso (selezione ${activeIdx + 1}/${mo.selections.length})`);
+    const statusCls = dead ? 'danger' : (activeIdx === -1 ? 'ok' : 'info');
+    return `
+      <div class="mo-list-item">
+        <div>
+          <div style="font-weight:700;">${escapeHtml(mo.name || 'Senza nome')}</div>
+          <div style="font-size:12px; color:var(--muted);">${escapeHtml(mo.bookmaker || '—')} · ${mo.selections.length} selezioni · €${fmt(mo.stake)} · <span class="pill ${statusCls}">${statusLabel}</span></div>
+        </div>
+        <div class="mb-actions">
+          <button class="mb-btn" onclick="loadMultiOdds(${mo.id})">Apri</button>
+          <button class="mb-btn" onclick="duplicateMultiOdds(${mo.id})">Duplica</button>
+          <button class="danger-link" onclick="deleteMultiOdds(${mo.id})">Elimina</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+currentMo = newMoDraft();
+renderMultiOdds();
+renderMoSavedList();
 
 /* ===================== CALCOLATORE PUNTA/PUNTA (3 modalità, 2 o 3 esiti) ===================== */
 // Qualificante: distribuisce uno stake totale su tutti gli esiti in proporzione
@@ -2309,6 +2910,7 @@ function exportBackup(){
     offers,
     accounts,
     matchedBets,
+    multiOdds: multiOddsSaved,
     profile: collectProfileInputs()
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
@@ -2363,30 +2965,35 @@ function importBackup(mode){
     const incomingOffers = Array.isArray(data.offers) ? data.offers : [];
     const incomingAccounts = Array.isArray(data.accounts) ? data.accounts : [];
     const incomingMatchedBets = Array.isArray(data.matchedBets) ? data.matchedBets : [];
+    const incomingMultiOdds = Array.isArray(data.multiOdds) ? data.multiOdds : [];
 
     if(mode === 'replace'){
       bets = incomingBets.slice();
       offers = incomingOffers.slice();
       accounts = incomingAccounts.slice();
       matchedBets = incomingMatchedBets.slice();
+      multiOddsSaved = incomingMultiOdds.slice();
       applyProfileInputs(data.profile);
-      statusEl.textContent = `Dati sostituiti: ${bets.length} scommesse, ${offers.length} offerte, ${accounts.length} account, ${matchedBets.length} matched bet.`;
+      statusEl.textContent = `Dati sostituiti: ${bets.length} scommesse, ${offers.length} offerte, ${accounts.length} account, ${matchedBets.length} matched bet, ${multiOddsSaved.length} multiple.`;
     } else {
       const addedBets = mergeById(bets, incomingBets);
       const addedOffers = mergeById(offers, incomingOffers);
       const addedAccounts = mergeById(accounts, incomingAccounts);
       const addedMatchedBets = mergeById(matchedBets, incomingMatchedBets);
-      statusEl.textContent = `Uniti: +${addedBets} scommesse, +${addedOffers} offerte, +${addedAccounts} account, +${addedMatchedBets} matched bet.`;
+      const addedMultiOdds = mergeById(multiOddsSaved, incomingMultiOdds);
+      statusEl.textContent = `Uniti: +${addedBets} scommesse, +${addedOffers} offerte, +${addedAccounts} account, +${addedMatchedBets} matched bet, +${addedMultiOdds} multiple.`;
     }
 
     save(STORE_KEYS.bets, bets);
     save(STORE_KEYS.offers, offers);
     save(STORE_KEYS.accounts, accounts);
     save(STORE_KEYS.matchedBets, matchedBets);
+    save(STORE_KEYS.multiOdds, multiOddsSaved);
     renderBets();
     renderOffers();
     renderAccounts();
     renderMatchedBets();
+    renderMoSavedList();
     populateStratOfferSelect();
     statusEl.style.color = 'var(--accent)';
   };
