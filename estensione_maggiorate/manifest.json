@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Lettore Maggiorate",
+  "version": "1.0",
+  "description": "Legge le quote maggiorate di Sisal, Snai, PokerStars e degli altri book con anti-bot mentre navighi, e le passa all'app Maggiorate EV+ sul tuo PC.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8765/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.admiralbet.it/*",
+        "https://*.bet365.it/*",
+        "https://*.eplay24.it/*",
+        "https://*.pokerstars.it/*",
+        "https://*.sisal.it/*",
+        "https://*.snai.it/*",
+        "https://admiralbet.it/*",
+        "https://bet365.it/*",
+        "https://eplay24.it/*",
+        "https://pokerstars.it/*",
+        "https://sisal.it/*",
+        "https://snai.it/*"
+      ],
+      "js": [
+        "estrattore.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Lettore Maggiorate"
+  }
+}

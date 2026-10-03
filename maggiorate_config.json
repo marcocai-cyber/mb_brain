@@ -1,0 +1,256 @@
+{
+  "_readme": "Book letti da scraper_maggiorate.py. Vengono letti SOLO i book con \"attivo\": true e \"pagamento\": \"reale\" (vincita pagata in saldo reale). I book che pagano la maggiorazione in bonus (es. MaxiQuote Goldbet/Lottomatica/Planetwin365/Betflag) restano qui solo come promemoria e vengono sempre saltati. 'url' = pagina dove compare il box maggiorate. 'mode': 'cards' = card con quota barrata o etichetta 'maggiorata/superquota/boost'; 'list' = pagina/categoria dedicata dove ogni riga e' una maggiorata. 'azioni' = click da fare prima della lettura (tab, filtri). 'max_bet' = puntata massima di default se la card non la riporta. Mappatura verificata dal vivo il 02/10/2026. 'lettura': 'estensione' = book che rifiutano il browser automatico (anti-bot): non li legge lo scraper ma l'estensione Chrome 'Lettore Maggiorate' mentre navighi (vedi LEGGIMI_maggiorate.md). 'filtro_righe' = regex che una riga deve contenere per essere tenuta (solo modalita' list).",
+  "soglia_ev_pct": 0.0,
+  "solo_oggi": true,
+  "_solo_oggi": "true = legge e valuta solo le maggiorate con la data di oggi (quelle senza data si verificano sull'exchange); false = tutte",
+  "usa_sportsbook_betfair": true,
+  "_usa_sportsbook_betfair": "true = se l'exchange non quota marcatori/corner, li legge dalla pagina evento del Betfair Sportsbook (Playwright)",
+  "attesa_caricamento_sec": 6,
+  "book": [
+    {
+      "name": "Sisal",
+      "url": "https://www.sisal.it/scommesse-matchpoint",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": 100,
+      "note": "Home sport: box 'Da giocare in singola' (Speciali Calcio con quota maggiorata) + My Combo barrate. Max 100 euro scelto da Marco per evitare l'accettazione. Piattaforma con anti-bot Akamai: il browser automatico viene spesso rifiutato.",
+      "lettura": "estensione",
+      "pagine_estensione": [
+        "https://www.sisal.it/scommesse-matchpoint"
+      ]
+    },
+    {
+      "name": "Snai",
+      "url": "https://www.snai.it/scommesse",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Clone Sisal. Box 'Da giocare in singola' + tab 'Quote Maggiorate'. Anti-bot Akamai come Sisal.",
+      "lettura": "estensione",
+      "pagine_estensione": [
+        "https://www.snai.it/scommesse"
+      ]
+    },
+    {
+      "name": "PokerStars",
+      "url": "https://www.pokerstars.it/scommesse",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Clone Sisal. 'Le nostre proposte' con etichetta 'Quota maggiorata'. Maggiorate diverse da Snai nello stesso giorno. Anti-bot Akamai.",
+      "lettura": "estensione",
+      "pagine_estensione": [
+        "https://www.pokerstars.it/scommesse"
+      ],
+      "barrata_senza_stile": true
+    },
+    {
+      "name": "Vincitu",
+      "url": "https://www.vincitu.it/scommesse",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": 10,
+      "note": "Box 'MAGGIORATA - MAX BET' in home sport, max bet scritto nella card. Solo in singola."
+    },
+    {
+      "name": "Betfair Sportsbook",
+      "url": "https://www.betfair.it/scommesse/calcio/s-1",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "list",
+      "azioni": [
+        {
+          "click_role": "tab",
+          "name": "Speciali",
+          "wait": 4
+        }
+      ],
+      "max_bet": 25,
+      "note": "Calcio > Speciali > SuperCombo (sportsbook, non exchange). Max 25 euro verificato da Marco."
+    },
+    {
+      "name": "William Hill",
+      "url": "https://sports.williamhill.it/betting/it-it",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Home sport > 'Le nostre proposte', etichetta 'Quota Maggiorata'. Mercati strutturati (1X2+GG, PT/FT, RE multiplo, ammonito...): ottimo per il livello 1."
+    },
+    {
+      "name": "Bwin",
+      "url": "https://sports.bwin.it/it/sports",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Carosello in alto (card 'Quota maggiorata', quota 'Prima' = barrata) + menu sinistro 'Quote maggiorate'."
+    },
+    {
+      "name": "bet365",
+      "url": "https://www.bet365.it/#/HO/",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Home: card SUPER QUOTA / QUOTA MAGGIORATA nel carosello dell'evento in evidenza + tab 'Quota Maggiorata' nelle competizioni. Puntata max mostrata sul mercato solo da loggato. Protezione anti-bot molto forte: probabile 'bloccato dal sito'.",
+      "lettura": "estensione"
+    },
+    {
+      "name": "Betsson",
+      "url": "https://www.betsson.it/scommesse",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Carosello 'Quote Maggiorate' in cima: SUPER QUOTA / QUOTA MAGGIORATA (quota 'PRIMA' = barrata). Le 'MULTIPLA MAGGIORATA' vengono scartate."
+    },
+    {
+      "name": "Admiralbet",
+      "url": "https://www.admiralbet.it/scommesse",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Card con quota barrata in cima a /scommesse + Speciali Calcio > Maggiorate. Stessa piattaforma di Codere/Marathonbet/DAZN Bet.",
+      "lettura": "estensione"
+    },
+    {
+      "name": "Marathonbet",
+      "url": "https://www.marathonbet.it/scommesse/quote-maggiorate",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "list",
+      "azioni": [
+        {
+          "click_all": ".box-paese label.custom-control-label[for^='xs-selection']"
+        },
+        {
+          "click": ".box-paese i.fa-play"
+        }
+      ],
+      "max_bet": null,
+      "note": "Sport 'QUOTE-MAGGIORATE': gruppi Tutti Marcatori / Tutte Over / Tutte Goal / Segneranno Tutte / Vinceranno Tutte. Si spuntano tutti i gruppi e si preme play."
+    },
+    {
+      "name": "DAZN Bet",
+      "url": "https://www.daznbet.it/scommesse",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "azioni": [
+        {
+          "click_text": "Super Quote"
+        }
+      ],
+      "max_bet": null,
+      "note": "Tab 'Super Quote' accanto a My Combo, etichetta 'Maggiorata DAZNBet Club' (Speciali Calcio: Tutti Segnano / Tutti Goal o Assist). Verificare se servono requisiti 'Club'."
+    },
+    {
+      "name": "Stake",
+      "url": "https://www.stake.it/betting/index.html",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Sport > carosello 'Stake Boost' (Starter fino a +10%, Turbo fino a +20%, Ultra oltre +20%). T&C: quota e vincita reali; Turbo e Ultra solo singola; puntata max per ogni boost. Alcune Starter solo dentro la pagina evento."
+    },
+    {
+      "name": "Sunbet",
+      "url": "https://www.sunbet.it/sport",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": 20,
+      "note": "Box 'Quote Maggiorate' sotto 'In evidenza'. Card con 'Max Bet 20 euro - Max 1 ticket'. Stessa piattaforma di NetBet/StanleyBet/Gioca7/Domusbet."
+    },
+    {
+      "name": "NetBet",
+      "url": "https://www.netbet.it/scommesse",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Stessa piattaforma di Sunbet. Nessuna maggiorata il 02/10/2026: tenuto attivo per intercettarle quando compaiono."
+    },
+    {
+      "name": "Fastbet",
+      "url": "https://www.fastbet.it/betting/sport/index.html#/sport/66/category/1456/championship/27459",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "list",
+      "max_bet": null,
+      "note": "Calcio > Speciali > Maggiorate ('Vincono Tutte' / 'Tutti Segnano'). Se l'id del campionato cambia, aprire Scommesse > menu sinistro 'MAGGIORATE' e copiare il nuovo URL.",
+      "filtro_righe": "vinc|tutt|winners|segn|\\("
+    },
+    {
+      "name": "Zonagioco",
+      "url": "",
+      "pagamento": "reale",
+      "attivo": false,
+      "mode": "list",
+      "max_bet": null,
+      "note": "Riporta quasi sempre le stesse maggiorate di Fastbet. URL della sezione sport non verificato (il sito non caricava): inserirlo e mettere attivo=true.",
+      "filtro_righe": "vinc|tutt|winners|segn|\\("
+    },
+    {
+      "name": "Codere",
+      "url": "https://www.codere.it/scommesse",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Stessa piattaforma di Admiralbet/Marathonbet. Nessuna maggiorata visibile il 02/10/2026."
+    },
+    {
+      "name": "Eplay24",
+      "url": "https://eplay24.it/scommesse/prematch",
+      "pagamento": "reale",
+      "attivo": true,
+      "mode": "cards",
+      "max_bet": null,
+      "note": "Le maggiorate esistono (compaiono nel feed 'Chi vince con i coupon?') ma il 02/10/2026 non erano esposte nel palinsesto. Anti-bot Akamai segnalato anche dallo scraper promozioni.",
+      "lettura": "estensione"
+    },
+    {
+      "name": "Goldbet",
+      "url": "https://www.goldbet.it/scommesse/sport/maxiquote",
+      "pagamento": "bonus",
+      "attivo": false,
+      "mode": "cards",
+      "note": "ESCLUSO: MaxiQuote, la maggiorazione e' pagata in bonus (puntata x (maxiquota - quota reale))."
+    },
+    {
+      "name": "Lottomatica",
+      "url": "https://www.lottomatica.it/scommesse/sport/maxiquote",
+      "pagamento": "bonus",
+      "attivo": false,
+      "mode": "cards",
+      "note": "ESCLUSO: stesse MaxiQuote di Goldbet, maggiorazione in bonus."
+    },
+    {
+      "name": "Planetwin365",
+      "url": "https://www.planetwin365.it/scommesse/sport/maxiquote",
+      "pagamento": "bonus",
+      "attivo": false,
+      "mode": "cards",
+      "note": "ESCLUSO: stesse MaxiQuote di Goldbet, maggiorazione in bonus."
+    },
+    {
+      "name": "Betflag",
+      "url": "https://www.betflag.it/sport",
+      "pagamento": "bonus",
+      "attivo": false,
+      "mode": "cards",
+      "note": "ESCLUSO: stessa piattaforma MaxiQuote (maggiorazione in bonus)."
+    }
+  ],
+  "margine_speciali_pct": {
+    "default": 10
+  },
+  "porta_estensione": 8765
+}

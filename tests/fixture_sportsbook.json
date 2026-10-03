@@ -1,0 +1,863 @@
+[
+{
+"data": {
+"Cards": [
+{
+"__typename": "MarketCard",
+"displayRunners": {
+"sportsbook": {
+"market": {
+"__typename": "SportsbookMarket",
+"urn": "m1",
+"name": "Primo Marcatore",
+"marketType": "FIRST_GOAL_SCORER",
+"hierarchy": {
+"sportevent": {
+"eventId": 36131309,
+"name": "Croazia - Inghilterra",
+"openDate": "2026-10-03T16:00:00.000Z"
+}
+},
+"runners": [
+{
+"__typename": "Runner",
+"name": "Luka Sucic",
+"selectionId": 1000,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Dion Beljo",
+"selectionId": 1001,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Ante Budimir",
+"selectionId": 1002,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Ivan Smolcic",
+"selectionId": 1003,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Marin Pongracic",
+"selectionId": 1004,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Luka Modric",
+"selectionId": 1005,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Mario Pasalic",
+"selectionId": 1006,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Mateo Kovacic",
+"selectionId": 1007,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Martin Baturina",
+"selectionId": 1008,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Luka Vuskovic",
+"selectionId": 1009,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Josip Stanisic",
+"selectionId": 1010,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Ivan Perisic",
+"selectionId": 1011,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Josko Gvardiol",
+"selectionId": 1012,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Marco Pasalic",
+"selectionId": 1013,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Nessun goal",
+"selectionId": 1014,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Autogoal",
+"selectionId": 1015,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Morgan Rogers",
+"selectionId": 1016,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Jude Bellingham",
+"selectionId": 1017,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Lewis Hall",
+"selectionId": 1018,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Trent Alexander-Arnold",
+"selectionId": 1019,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Nico O'Reilly",
+"selectionId": 1020,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Elliot Anderson",
+"selectionId": 1021,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Anthony Gordon",
+"selectionId": 1022,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Harry Kane",
+"selectionId": 1023,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Marc Guehi",
+"selectionId": 1024,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Myles Lewis-Skelly",
+"selectionId": 1025,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Bukayo Saka",
+"selectionId": 1026,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Ezri Konsa",
+"selectionId": 1027,
+"handicap": 0
+}
+],
+"liveData": {
+"runners": [
+{
+"selectionId": 1000,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 17
+}
+},
+{
+"selectionId": 1001,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 8.5
+}
+},
+{
+"selectionId": 1002,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 6
+}
+},
+{
+"selectionId": 1003,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 67
+}
+},
+{
+"selectionId": 1004,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 91
+}
+},
+{
+"selectionId": 1005,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 18
+}
+},
+{
+"selectionId": 1006,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 23
+}
+},
+{
+"selectionId": 1007,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 26
+}
+},
+{
+"selectionId": 1008,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 18
+}
+},
+{
+"selectionId": 1009,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 31
+}
+},
+{
+"selectionId": 1010,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 71
+}
+},
+{
+"selectionId": 1011,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 15
+}
+},
+{
+"selectionId": 1012,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 23
+}
+},
+{
+"selectionId": 1013,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 12
+}
+},
+{
+"selectionId": 1014,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 15
+}
+},
+{
+"selectionId": 1015,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 26
+}
+},
+{
+"selectionId": 1016,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 10
+}
+},
+{
+"selectionId": 1017,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 7.5
+}
+},
+{
+"selectionId": 1018,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 46
+}
+},
+{
+"selectionId": 1019,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 36
+}
+},
+{
+"selectionId": 1020,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 23
+}
+},
+{
+"selectionId": 1021,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 26
+}
+},
+{
+"selectionId": 1022,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 7.5
+}
+},
+{
+"selectionId": 1023,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 4.2
+}
+},
+{
+"selectionId": 1024,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 41
+}
+},
+{
+"selectionId": 1025,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 23
+}
+},
+{
+"selectionId": 1026,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 10
+}
+},
+{
+"selectionId": 1027,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 51
+}
+}
+]
+}
+}
+}
+}
+}
+]
+}
+},
+{
+"data": {
+"Cards": [
+{
+"displayRunners": {
+"sportsbook": {
+"market": {
+"__typename": "SportsbookMarket",
+"urn": "c5.5",
+"name": "Corner under/over 5,5",
+"marketType": "TOTAL_CORNERS_5.5",
+"hierarchy": {
+"sportevent": {
+"eventId": 36131309,
+"name": "Croazia - Inghilterra",
+"openDate": "2026-10-03T16:00:00.000Z"
+}
+},
+"runners": [
+{
+"__typename": "Runner",
+"name": "Over 5,5 corner",
+"selectionId": 1000,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Under 5,5 corner",
+"selectionId": 1001,
+"handicap": 0
+}
+],
+"liveData": {
+"runners": [
+{
+"selectionId": 1000,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 1.09
+}
+},
+{
+"selectionId": 1001,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 6.2
+}
+}
+]
+}
+}
+}
+}
+},
+{
+"displayRunners": {
+"sportsbook": {
+"market": {
+"__typename": "SportsbookMarket",
+"urn": "c6.5",
+"name": "Corner under/over 6,5",
+"marketType": "TOTAL_CORNERS_6.5",
+"hierarchy": {
+"sportevent": {
+"eventId": 36131309,
+"name": "Croazia - Inghilterra",
+"openDate": "2026-10-03T16:00:00.000Z"
+}
+},
+"runners": [
+{
+"__typename": "Runner",
+"name": "Over 6,5 corner",
+"selectionId": 1000,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Under 6,5 corner",
+"selectionId": 1001,
+"handicap": 0
+}
+],
+"liveData": {
+"runners": [
+{
+"selectionId": 1000,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 1.22
+}
+},
+{
+"selectionId": 1001,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 3.8
+}
+}
+]
+}
+}
+}
+}
+},
+{
+"displayRunners": {
+"sportsbook": {
+"market": {
+"__typename": "SportsbookMarket",
+"urn": "c7.5",
+"name": "Corner under/over 7,5",
+"marketType": "TOTAL_CORNERS_7.5",
+"hierarchy": {
+"sportevent": {
+"eventId": 36131309,
+"name": "Croazia - Inghilterra",
+"openDate": "2026-10-03T16:00:00.000Z"
+}
+},
+"runners": [
+{
+"__typename": "Runner",
+"name": "Over 7,5 corner",
+"selectionId": 1000,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Under 7,5 corner",
+"selectionId": 1001,
+"handicap": 0
+}
+],
+"liveData": {
+"runners": [
+{
+"selectionId": 1000,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 1.45
+}
+},
+{
+"selectionId": 1001,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 2.55
+}
+}
+]
+}
+}
+}
+}
+},
+{
+"displayRunners": {
+"sportsbook": {
+"market": {
+"__typename": "SportsbookMarket",
+"urn": "c8.5",
+"name": "Corner under/over 8,5",
+"marketType": "TOTAL_CORNERS_8.5",
+"hierarchy": {
+"sportevent": {
+"eventId": 36131309,
+"name": "Croazia - Inghilterra",
+"openDate": "2026-10-03T16:00:00.000Z"
+}
+},
+"runners": [
+{
+"__typename": "Runner",
+"name": "Over 8,5 corner",
+"selectionId": 1000,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Under 8,5 corner",
+"selectionId": 1001,
+"handicap": 0
+}
+],
+"liveData": {
+"runners": [
+{
+"selectionId": 1000,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 1.85
+}
+},
+{
+"selectionId": 1001,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 1.85
+}
+}
+]
+}
+}
+}
+}
+},
+{
+"displayRunners": {
+"sportsbook": {
+"market": {
+"__typename": "SportsbookMarket",
+"urn": "c9.5",
+"name": "Corner under/over 9,5",
+"marketType": "TOTAL_CORNERS_9.5",
+"hierarchy": {
+"sportevent": {
+"eventId": 36131309,
+"name": "Croazia - Inghilterra",
+"openDate": "2026-10-03T16:00:00.000Z"
+}
+},
+"runners": [
+{
+"__typename": "Runner",
+"name": "Over 9,5 corner",
+"selectionId": 1000,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Under 9,5 corner",
+"selectionId": 1001,
+"handicap": 0
+}
+],
+"liveData": {
+"runners": [
+{
+"selectionId": 1000,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 2.4
+}
+},
+{
+"selectionId": 1001,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 1.52
+}
+}
+]
+}
+}
+}
+}
+},
+{
+"displayRunners": {
+"sportsbook": {
+"market": {
+"__typename": "SportsbookMarket",
+"urn": "c10.5",
+"name": "Corner under/over 10,5",
+"marketType": "TOTAL_CORNERS_10.5",
+"hierarchy": {
+"sportevent": {
+"eventId": 36131309,
+"name": "Croazia - Inghilterra",
+"openDate": "2026-10-03T16:00:00.000Z"
+}
+},
+"runners": [
+{
+"__typename": "Runner",
+"name": "Over 10,5 corner",
+"selectionId": 1000,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Under 10,5 corner",
+"selectionId": 1001,
+"handicap": 0
+}
+],
+"liveData": {
+"runners": [
+{
+"selectionId": 1000,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 3.25
+}
+},
+{
+"selectionId": 1001,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 1.3
+}
+}
+]
+}
+}
+}
+}
+},
+{
+"displayRunners": {
+"sportsbook": {
+"market": {
+"__typename": "SportsbookMarket",
+"urn": "c11.5",
+"name": "Corner under/over 11,5",
+"marketType": "TOTAL_CORNERS_11.5",
+"hierarchy": {
+"sportevent": {
+"eventId": 36131309,
+"name": "Croazia - Inghilterra",
+"openDate": "2026-10-03T16:00:00.000Z"
+}
+},
+"runners": [
+{
+"__typename": "Runner",
+"name": "Over 11,5 corner",
+"selectionId": 1000,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Under 11,5 corner",
+"selectionId": 1001,
+"handicap": 0
+}
+],
+"liveData": {
+"runners": [
+{
+"selectionId": 1000,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 4.75
+}
+},
+{
+"selectionId": 1001,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 1.16
+}
+}
+]
+}
+}
+}
+}
+},
+{
+"displayRunners": {
+"sportsbook": {
+"market": {
+"__typename": "SportsbookMarket",
+"urn": "c12.5",
+"name": "Corner under/over 12,5",
+"marketType": "TOTAL_CORNERS_12.5",
+"hierarchy": {
+"sportevent": {
+"eventId": 36131309,
+"name": "Croazia - Inghilterra",
+"openDate": "2026-10-03T16:00:00.000Z"
+}
+},
+"runners": [
+{
+"__typename": "Runner",
+"name": "Over 12,5 corner",
+"selectionId": 1000,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Under 12,5 corner",
+"selectionId": 1001,
+"handicap": 0
+}
+],
+"liveData": {
+"runners": [
+{
+"selectionId": 1000,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 7
+}
+},
+{
+"selectionId": 1001,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 1.07
+}
+}
+]
+}
+}
+}
+}
+},
+{
+"displayRunners": {
+"sportsbook": {
+"market": {
+"__typename": "SportsbookMarket",
+"urn": "c13.5",
+"name": "Corner under/over 13,5",
+"marketType": "TOTAL_CORNERS_13.5",
+"hierarchy": {
+"sportevent": {
+"eventId": 36131309,
+"name": "Croazia - Inghilterra",
+"openDate": "2026-10-03T16:00:00.000Z"
+}
+},
+"runners": [
+{
+"__typename": "Runner",
+"name": "Over 13,5 corner",
+"selectionId": 1000,
+"handicap": 0
+},
+{
+"__typename": "Runner",
+"name": "Under 13,5 corner",
+"selectionId": 1001,
+"handicap": 0
+}
+],
+"liveData": {
+"runners": [
+{
+"selectionId": 1000,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 9.5
+}
+},
+{
+"selectionId": 1001,
+"runnerStatus": "ACTIVE",
+"odds": {
+"decimal": 1.03
+}
+}
+]
+}
+}
+}
+}
+}
+]
+}
+}
+]

@@ -1,0 +1,10 @@
+{
+  "_readme": "Nomi alternativi per trovare le squadre su Betfair Exchange quando il nome del book non basta. Chiave = nome come appare sul book (minuscolo), valore = nome come appare sull'exchange. Esempio sotto.",
+  "bosnia-erzegovina": "Bosnia",
+  "isole far oer": "Faroe Islands",
+  "repubblica ceca": "Czech Republic",
+  "irlanda del nord": "Northern Ireland",
+  "rep. ceca": "Repubblica Ceca",
+  "macedonia del nord": "Macedonia del Nord",
+  "bosnia": "Bosnia"
+}
