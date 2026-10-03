@@ -3135,5 +3135,22 @@
     "first_seen": "2026-10-03",
     "last_seen": "2026-10-03",
     "expired": false
+  },
+  {
+    "book": "Admiralbet",
+    "title": "Benvenuto, Marco Cairone Ultimo Accesso: 03/10/2026 09:56:44 Indirizzo IP: 151.38.220.129 Saldo: 20 € Saldo Bonus: 0 € Inizia a giocare!",
+    "value": 20,
+    "deadline": "",
+    "wager": "",
+    "status": "Da iniziare",
+    "note": "• Bonus: Fun bonus\n• Real bonus: window['TRANSFER_CACHE'] = {\"data\" :…",
+    "image": "https://cdn.admiralyes.it/avatar/default_avatar.svg",
+    "url": "https://www.admiralbet.it/",
+    "max_cap": 0,
+    "slots": [],
+    "categoria": "Benvenuto",
+    "first_seen": "2026-10-03",
+    "last_seen": "2026-10-03",
+    "expired": false
   }
 ]
