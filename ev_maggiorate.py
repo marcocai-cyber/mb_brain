@@ -512,13 +512,14 @@ def fair_from_exchange(spec, client, aliases, giorno=None):
     """Ritorna dict con prob fair, quota fair, prob 'lay' (conservativa), dettaglio
     e avvisi; oppure solleva BetfairError con il motivo."""
     import fair_speciali as FS
-    p_tot, p_lay_tot, detail, warn = 1.0, 1.0, [], []
+    p_tot, p_lay_tot, detail, warn, eventi = 1.0, 1.0, [], [], []
     for leg in spec["legs"]:
         ev = client.find_event(leg.get("home"), leg.get("away"), leg.get("team"), aliases, giorno=giorno)
         if not ev:
             who = leg.get("team") or f"{leg.get('home')} - {leg.get('away')}"
             raise BetfairError(f"evento non trovato sull'exchange: {who}")
         FS.controlla_inizio(ev)
+        eventi.append({"name": ev["name"], "openDate": ev.get("openDate")})
         mk = client.market(ev["id"], leg["market"])
         if not mk:
             raise BetfairError(f"mercato {leg['market']} non disponibile per {ev['name']}")
@@ -540,7 +541,7 @@ def fair_from_exchange(spec, client, aliases, giorno=None):
     # di quello calcolato contro la quota lay (quota / lay - 1)
     p_cons = min(p_tot, p_lay_tot) if p_lay_tot else None
     return {"prob": p_tot, "fair": round(1 / p_tot, 3) if p_tot else None,
-            "prob_lay": p_cons, "dettaglio": " | ".join(detail), "avvisi": warn}
+            "prob_lay": p_cons, "dettaglio": " | ".join(detail), "avvisi": warn, "eventi": eventi}
 
 
 # ---------------------------------------------------------------------------
@@ -576,6 +577,24 @@ def data_maggiorata(it, oggi=None):
         except ValueError:
             pass
     return min(cands, key=lambda x: abs((x - oggi).days)) if cands else None
+
+
+def orario_inizio(fair, it):
+    """Inizio partita (ora locale) per il post: dall'exchange se la partita e' stata trovata,
+    altrimenti dall'orario scritto sulla card. Con piu' partite: la prima che inizia.
+    -> (testo 'dd/mm HH:MM' o 'HH:MM', numero partite)"""
+    inizi = []
+    for e in (fair or {}).get("eventi") or []:
+        try:
+            inizi.append(datetime.fromisoformat(str(e["openDate"]).replace("Z", "+00:00")).astimezone())
+        except (KeyError, TypeError, ValueError):
+            pass
+    if inizi:
+        t = min(inizi)
+        return f"{t:%d/%m %H:%M}", len({x.isoformat() for x in inizi}) if len(inizi) > 1 else 1
+    if it.get("ora"):
+        return (f"{it['data']} {it['ora']}" if it.get("data") else it["ora"]), 1
+    return "", 0
 
 
 def solo_di_oggi(items, oggi=None):
@@ -689,6 +708,7 @@ def evaluate(items, manual, client=None, aliases=None, soglia=0.0, log=print, ma
             r["dettaglio_fair"] = fair["dettaglio"]
             r["avvisi"] = fair["avvisi"] + ([f"perche' stima: {'; '.join(errori)}"] if stima and errori else [])
             r["stima"] = stima
+            r["inizio"], r["n_partite"] = orario_inizio(fair, it)
             r["ev_plus"] = (r["ev_pct"] > soglia) and not stima
             r["ev_plus_stima"] = stima and r["ev_pct"] > soglia
             r["stato"] = ("EV+" if r["ev_pct"] > soglia else "EV-") + (" (stima)" if stima else "")
@@ -704,8 +724,19 @@ def evaluate(items, manual, client=None, aliases=None, soglia=0.0, log=print, ma
 def telegram_post(r):
     """Testo del segnale nel formato del canale."""
     righe = [f"{r['book'].upper()} - QUOTA MAGGIORATA"]
+    inizio = r.get("inizio") or ""
+    if not inizio and r.get("ora"):
+        inizio = f"{r['data']} {r['ora']}" if r.get("data") else r["ora"]
+    if not inizio and r.get("data"):
+        inizio = r["data"]
+    quando = ""
+    if inizio:
+        d, _, h = inizio.rpartition(" ") if ":" in inizio else (inizio, "", "")
+        quando = (f"{d} ore {h}" if d else f"ore {h}") if h else d
     if r.get("evento"):
-        righe.append(f"{r['evento']}" + (f" ({r['data']})" if r.get("data") else ""))
+        righe.append(f"{r['evento']}" + (f" ({quando})" if quando else ""))
+    elif quando:
+        righe.append(f"Inizio: {quando}" + (" (prima partita)" if (r.get("n_partite") or 1) > 1 else ""))
     righe.append(f"{r.get('descrizione') or r.get('etichetta')} @{r['quota_maggiorata']:.2f}")
     righe.append(f"Puntata massima: {('%g' % r['max_bet']) + ' euro' if r.get('max_bet') else 'n.d.'}")
     cond = ", ".join(r.get("condizioni") or []) or "singola"

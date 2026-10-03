@@ -223,6 +223,8 @@ check("partita gia' iniziata: niente fair ne' stima", rows and rows[0]["stato"] 
       rows and rows[0].get("errore_fair"))
 rows = E.evaluate([it_oggi], {}, FakeBF(open_date=DOMANI_ISO.replace(DOMANI_ISO[:10], f"{OGGI:%Y-%m-%d}").replace("T18:00", "T23:30")), {}, 0.0, solo_oggi=True)
 check("partita non iniziata: fair dall'exchange", rows[0]["fair"] and not rows[0]["stima"], rows[0]["stato"])
+check("orario di inizio nel post Telegram", rows[0].get("inizio") and f"ore {rows[0]['inizio'][-5:]}" in E.telegram_post(rows[0]),
+      E.telegram_post(rows[0]).splitlines()[1])
 
 # ---------------------------------------------------------------- 6. date e partite dalle card
 check("data '03/10/26' con '+1/1' nel testo", data_card("Svizzera\nSlovenia\n03/10/26\nJ.MANZAMBI+1/1", date(2026, 10, 2)) == "03/10")

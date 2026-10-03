@@ -711,6 +711,17 @@ def parse_speciale(item):
         squadre = _squadre(lista)
         if len(squadre) >= 2:
             return [{"squadra": s, "conds": [{"t": "esito_squadra", "val": "segna"}]} for s in squadre]
+    # Betfair SuperCombo: "3 Ott: Scozia, Svizzera e Islanda" + "Tutte vincenti" / "Segnano tutte" / "Tutte over 1,5"
+    riga_sc = next((l for l in corpo if re.match(r"^\d{1,2}\s+[A-Za-z]{3}:\s*\S", l)), "")
+    if riga_sc and not re.search(r"(?i)over|entrambi", riga_sc):
+        squadre = [x.strip() for x in re.split(r",\s*|\s+e\s+", riga_sc.split(":", 1)[1]) if x.strip()]
+        resto = " ".join(l for l in corpo if l != riga_sc).lower()
+        mo = re.search(r"over\s+(\d)[.,]5", resto)
+        if len(squadre) >= 2 and re.search(r"tutte vincenti|vincono tutte|tutti vincenti", resto):
+            extra = [{"t": "gol", "chi": "tot", "min": int(mo.group(1)) + 1}] if mo else []
+            return [{"squadra": sq, "conds": [{"t": "esito_squadra", "val": "vince"}] + extra} for sq in squadre]
+        if len(squadre) >= 2 and re.search(r"segnano tutte|tutte segnano", resto):
+            return [{"squadra": sq, "conds": [{"t": "esito_squadra", "val": "segna"}]} for sq in squadre]
     m = re.search(r"([A-Za-zÀ-ÿ' ]+?)\s+e\s+([A-Za-zÀ-ÿ' ]+?)\s+vincenti\s+e\s+over\s+" + _NUM + r".{0,20}entrambi i match", flat, re.I)
     if m:  # Betfair SuperCombo
         line = int(m.group(3))
@@ -789,7 +800,7 @@ def _plausibile(nome, casa, ospite):
         return False
     if casa and norm(nome) in (norm(casa), norm(ospite)):
         return False
-    if " - " in nome or ":" in nome:
+    if " - " in nome or ":" in nome or "_" in nome:
         return False
     sig = [t for t in toks if norm(t) and norm(t) not in _STOP]
     if not sig:
@@ -1076,6 +1087,7 @@ class Calcolatore:
         self._model = {}
         self._sb = {}
         self.eventi_noti = []          # [(casa, ospite, date|None)] dalle altre maggiorate del run
+        self.eventi_usati = []         # partite usate dall'ultimo calcolo (per l'orario di inizio)
 
     def snapshot(self, ev):
         if ev["id"] not in self._snap:
@@ -1267,6 +1279,7 @@ class Calcolatore:
                 ev = self.evento_del_giocatore(gamba["giocatore"])
         else:
             ev = self.evento(gamba["casa"], gamba["ospite"])
+        self.eventi_usati.append(ev)
         snap = self.snapshot(ev)
         if all(c["t"] == "giocatore" for c in conds) and all(c["cosa"] != "primo" for c in conds):
             # solo condizioni giocatore: nel modello di Poisson i gol di giocatori diversi
@@ -1301,6 +1314,7 @@ class Calcolatore:
         return p, nota
 
     def fair(self, item):
+        self.eventi_usati = []
         gambe = parse_speciale(item)
         p, note = 1.0, []
         for g in gambe:
@@ -1311,7 +1325,8 @@ class Calcolatore:
             raise DatoMancante("probabilita' nulla")
         fonti = "exchange + Sportsbook" if "Sportsbook" in " ".join(note) else "exchange"
         return {"prob": p, "fair": round(1 / p, 3), "prob_lay": None,
-                "dettaglio": f"modello Poisson/Dixon-Coles ({fonti}) | " + " | ".join(note), "avvisi": []}
+                "dettaglio": f"modello Poisson/Dixon-Coles ({fonti}) | " + " | ".join(note), "avvisi": [],
+                "eventi": [{"name": e["name"], "openDate": e.get("openDate")} for e in self.eventi_usati]}
 
 
 class PartitaIniziata(DatoMancante):

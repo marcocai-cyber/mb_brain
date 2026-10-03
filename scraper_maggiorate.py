@@ -196,6 +196,19 @@ def data_card(text, oggi=None):
     return ""
 
 
+def ora_card(text):
+    """Orario di inizio scritto sulla card: '20:45', '02/10 • 20:45', 'ore 18.00', o Snai
+    con ore e minuti su righe separate ('20', ':', '45')."""
+    t = re.sub(r"(?m)^(\d{1,2})\n:\n(\d{2})$", r"\1:\2", text)
+    for l in t.split("\n"):
+        if re.search(r"(?i)max|bet|€|quota", l):
+            continue
+        m = re.search(r"(?<![\d.,:])([01]?\d|2[0-3])[:.]([0-5]\d)(?![\d.,:])", l)
+        if m and (":" in m.group(0) or re.search(r"(?i)\bore\b|•|\d{1,2}/\d{1,2}", l)):
+            return f"{int(m.group(1)):02d}:{m.group(2)}"
+    return ""
+
+
 def di_oggi(it, oggi=None):
     """True se la maggiorata e' di oggi o non ha data."""
     d = (it.get("data") or "").strip()
@@ -332,6 +345,7 @@ def parse_card(book_cfg, raw):
             pass
 
     date = data_card(text)
+    ora = ora_card(text)
 
     etichetta = next((l for l in lines if LABEL_RE.match(l)), "")
     desc = []
@@ -361,6 +375,7 @@ def parse_card(book_cfg, raw):
         "book": book,
         "evento": evento,
         "data": date,
+        "ora": ora,
         "descrizione": descrizione,
         "etichetta": etichetta,
         "quota_barrata": barrata,
@@ -449,17 +464,54 @@ def scroll_page(page, steps=5, pause=0.4):
         pass
 
 
+COOKIE_SELECTORS = ["#onetrust-reject-all-handler", "button:has-text('Rifiuta tutti')", "button:has-text('Rifiuta')",
+                    "button:has-text('Solo necessari')", "button:has-text('Continua senza accettare')"]
+
+
+def chiudi_cookie(page):
+    """Chiude il banner dei cookie scegliendo solo i necessari: altrimenti puo' coprire
+    i pulsanti da cliccare (click in timeout)."""
+    for sel in COOKIE_SELECTORS:
+        try:
+            loc = page.locator(sel).first
+            if loc.is_visible(timeout=500):
+                loc.click(timeout=2000)
+                time.sleep(0.5)
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _clicca(loc, attesa_ms=15000):
+    """Clic robusto: aspetta che l'elemento compaia (le pagine React lo disegnano dopo
+    il caricamento), lo porta in vista e, se qualcosa lo copre, clicca via JavaScript."""
+    loc.wait_for(state="attached", timeout=attesa_ms)
+    try:
+        loc.scroll_into_view_if_needed(timeout=3000)
+    except Exception:
+        pass
+    try:
+        loc.click(timeout=5000)
+    except Exception:
+        loc.evaluate("e => e.click()")
+
+
 def run_actions(page, actions):
+    if actions:
+        chiudi_cookie(page)
     for a in actions or []:
         try:
             if "click_text" in a:
                 loc = page.get_by_text(a["click_text"], exact=True)
-                for i in range(loc.count()):
-                    if loc.nth(i).is_visible():
-                        loc.nth(i).click(timeout=5000)
-                        break
+                try:
+                    loc.first.wait_for(state="attached", timeout=15000)
+                except Exception:
+                    pass
+                vis = [loc.nth(i) for i in range(loc.count()) if loc.nth(i).is_visible()]
+                _clicca(vis[0] if vis else loc.first)
             elif "click_role" in a:
-                page.get_by_role(a["click_role"], name=a.get("name", "")).first.click(timeout=5000)
+                _clicca(page.get_by_role(a["click_role"], name=a.get("name", ""), exact=True).first)
             elif "click_all" in a:
                 loc = page.locator(a["click_all"])
                 for i in range(loc.count()):
@@ -467,7 +519,7 @@ def run_actions(page, actions):
                         loc.nth(i).click(timeout=5000)
                         time.sleep(0.2)
             elif "click" in a:
-                page.locator(a["click"]).first.click(timeout=5000)
+                _clicca(page.locator(a["click"]).first)
             time.sleep(a.get("wait", 2))
         except Exception as e:
             print(f"   [azione non riuscita] {a}: {str(e).splitlines()[0][:80]}")
