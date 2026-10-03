@@ -863,7 +863,8 @@ BONUS_PROGRESSIVO_RE = re.compile(r"bonus\s+(?:multipl[ae]\s+)?progressiv", re.I
 
 # Promo non sfruttabili (richiesta dell'utente, 2026-10-03): tornei, gare e
 # classifiche (podio, palio, race), montepremi, bingo, virtual, buon
-# compleanno, cartelle, "porta/invita un amico". Si cercano come parole
+# compleanno, cartelle, "porta/invita un amico", promo dei PVR (punti
+# vendita ricariche: anche solo citati, T&C compresi). Si cercano come parole
 # intere in titolo, descrizione della card e nome del file dell'immagine.
 # Il testo DENTRO l'immagine non e' leggibile dallo script.
 # - "bingo" e "virtual" nella descrizione di un bonus di BENVENUTO non lo
@@ -874,12 +875,14 @@ BONUS_PROGRESSIVO_RE = re.compile(r"bonus\s+(?:multipl[ae]\s+)?progressiv", re.I
 #   (dove "Bingo", "Virtual" e simili ci sono quasi sempre).
 PROMO_ESCLUSE_RE = re.compile(
     r"\b(?:podio|palio|races?|virtual[ei]?|montepremi|bingo|buon\s+compleanno|cartell[ae]"
-    r"|amic[oi]\s+registrat[oi]|invita\s+un\s+amico|porta\s+un\s+amico)\b",
+    r"|amic[oi]\s+registrat[oi]|invita\s+un\s+amico|porta\s+un\s+amico"
+    r"|pvr|punt[oi]\s+vendita\s+ricaric\w*)\b",
     re.IGNORECASE)
 PROMO_ESCLUSE_VERTICALI = {"bingo", "virtual", "virtuale", "virtuali"}
 PROMO_ESCLUSE_TERMS_RE = re.compile(
     r"\b(?:podio|palio|montepremi|buon\s+compleanno|cartell[ae]"
-    r"|amic[oi]\s+registrat[oi]|invita\s+un\s+amico|porta\s+un\s+amico)\b",
+    r"|amic[oi]\s+registrat[oi]|invita\s+un\s+amico|porta\s+un\s+amico"
+    r"|pvr|punt[oi]\s+vendita\s+ricaric\w*)\b",
     re.IGNORECASE)
 
 
