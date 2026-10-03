@@ -30,8 +30,10 @@ from riassunto_promo import riassumi, e_scaduta  # noqa: E402
 # Stesse regole dello scraper per categoria, scadenza e storico delle promo
 # (first_seen/last_seen, cartella "Scaduti" dell'app): il file e' uno solo.
 from scraper_promozioni import (  # noqa: E402
-    classify_category, guess_deadline, merge_with_expiry, is_sport_or_slot_welcome,
+    BONUS_PROGRESSIVO_RE, EXCLUDE_PATTERNS_DEFAULT, TERMS_EXCLUDE_KEYWORDS, TERMS_VALUE_CHARS,
+    classify_with_context, guess_deadline, load_config, merge_with_expiry, is_sport_or_slot_welcome,
 )
+from urllib.parse import urlparse  # noqa: E402
 OUTPUT_PATH = HERE / "promozioni.json"
 PORT = 8766
 HEADER_ATTESO = "X-Lettore-Promozioni"
@@ -86,22 +88,39 @@ class Handler(BaseHTTPRequestHandler):
             self._rifiuta(400, "formato non valido: servono 'book' e 'items'")
             return
 
+        try:
+            esclusioni = [k.lower() for k in load_config().get("exclude_keywords", EXCLUDE_PATTERNS_DEFAULT)]
+        except Exception:
+            esclusioni = [k.lower() for k in EXCLUDE_PATTERNS_DEFAULT]
+
         nuove, scadute, scartate = [], 0, 0
         for it in items:
-            testo = f"{it.pop('testo', '')} {it.pop('testo_dettaglio', '')}"
+            testo_card = it.pop("testo", "")
+            testo_dett = it.pop("testo_dettaglio", "")
+            testo = f"{testo_card} {testo_dett}"
             if not it.get("title"):
+                continue
+            card = f"{it['title']} {testo_card}"
+            # stessi filtri dello scraper: frasi escluse (menu, tornei, porta un
+            # amico...), bonus progressivo, montepremi nei T&C
+            breve = f"{it['title']} {testo_card[:220]}".lower()  # come lo snippet dello scraper
+            if (any(k in breve for k in esclusioni) or BONUS_PROGRESSIVO_RE.search(card)
+                    or any(k in testo_dett[:TERMS_VALUE_CHARS].lower() for k in TERMS_EXCLUDE_KEYWORDS)):
+                scartate += 1
                 continue
             r = riassumi(testo)
             deadline = guess_deadline(testo) or r["deadline"]
             if e_scaduta(deadline, testo):
                 scadute += 1
                 continue
-            categoria = classify_category(it["title"] + " " + testo)
-            if categoria == "Benvenuto" and not is_sport_or_slot_welcome(it["title"] + " " + testo):
+            categoria = classify_with_context(card, it.get("url", ""), testo_dett)
+            path_words = urlparse(it.get("url", "")).path.replace("-", " ")
+            if categoria == "Benvenuto" and not is_sport_or_slot_welcome(card + " " + path_words):
                 scartate += 1  # come lo scraper: tra i benvenuto solo sport e slot
                 continue
             it["book"] = book
             it["categoria"] = categoria
+            it["snippet"] = " ".join(testo_card.split())[:220]
             it["note"] = r["note"] or it.get("note", "")
             it["deadline"] = deadline
             it["wager"] = r["wager"]
@@ -122,7 +141,7 @@ class Handler(BaseHTTPRequestHandler):
         salva(finali)
 
         print(f"  {book}: {len(nuove)} promo salvate, {scadute} scadute scartate"
-              f"{f', {scartate} scartate (senza importo o benvenuto non sport/slot)' if scartate else ''}"
+              f"{f', {scartate} scartate dai filtri (esclusioni, bonus progressivo, senza importo, benvenuto non sport/slot)' if scartate else ''}"
               f"{f', {tolte} scadute da oltre 14 giorni tolte dal file' if tolte else ''}"
               f" — {len(finali)} totali in {OUTPUT_PATH.name}")
 

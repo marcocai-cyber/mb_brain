@@ -1120,7 +1120,7 @@
 <footer>
   <div>
     🔞 Gioca responsabilmente — questo strumento non incentiva il gioco d'azzardo, serve solo a estrarre valore da bonus e promozioni con rischio minimo. Dati salvati solo in questo browser (localStorage).
-    <span id="footerVersion" style="opacity:.7;" title="Se dopo un aggiornamento questa data non cambia, il browser sta mostrando una versione in cache: prova a ricaricare tenendo premuto il pulsante di refresh, o cancella la cache del sito.">· Versione app: 2026-09-30</span>
+    <span id="footerVersion" style="opacity:.7;" title="Se dopo un aggiornamento questa data non cambia, il browser sta mostrando una versione in cache: prova a ricaricare tenendo premuto il pulsante di refresh, o cancella la cache del sito.">· Versione app: 2026-10-03</span>
   </div>
   <div class="footer-links">
     <span onclick="document.querySelector('.tab-btn[data-tab=&quot;backup&quot;]').click()">💾 Backup</span>
@@ -2574,10 +2574,10 @@ function statusPill(status){
   return `<span class="pill ${map[status]||'info'}" style="cursor:pointer" title="Clicca per cambiare stato">${status}</span>`;
 }
 
-// Breve descrizione mostrata sulla card: preferisce la nota inserita a mano,
-// altrimenti usa l'inizio dei T&C raccolti dallo scraper, altrimenti il wagering.
+// Breve descrizione mostrata sulla card: l'inizio del riassunto per punti,
+// altrimenti il wagering (i T&C completi non vengono mostrati).
 function offerShortDesc(o){
-  const src = (o.note || o.terms || '').trim();
+  const src = (o.note || '').trim();
   if(src) return src.length > 140 ? src.slice(0,140).trim() + '…' : src;
   if(o.wager) return `Requisito di puntata: ${o.wager}`;
   return 'Nessuna descrizione disponibile — clicca per i dettagli.';
@@ -2593,7 +2593,9 @@ function escapeHtml(s){
 // campo categoria), usando la stessa logica del lato Python.
 const CATEGORY_KEYWORDS = {
   'Benvenuto': ['benvenuto', 'welcome', 'nuovi clienti', 'nuovo cliente', 'primo deposito',
-                'prima ricarica', 'registrati e', 'registrazione', 'iscriviti'],
+                'prima ricarica', 'registrati e', 'registrazione', 'iscriviti',
+                'nuovi players', 'nuovi player', 'nuovi giocatori', 'nuovo giocatore',
+                'nuovi utenti', 'nuovi iscritti', 'solo nuovi', '1° deposito'],
   'Rimborso': ['rimborso', 'cashback', 'risk free', 'denaro indietro', 'ti rimborsiamo',
                'soldi indietro', 'rimborsiamo'],
 };
@@ -2691,12 +2693,12 @@ function openOfferModal(id){
   const linkBtn = o.url
     ? `<a class="link-out" href="${o.url}" target="_blank" rel="noopener" style="padding:9px 16px; border:1px solid var(--border); border-radius:8px;">Vedi sul sito del bookmaker ↗</a>`
     : '';
-  const termsHtml = o.terms
-    ? `<div class="modal-section"><h4>Descrizione completa / Termini e condizioni</h4><div class="modal-terms">${escapeHtml(o.terms)}</div></div>`
-    : `<div class="modal-section"><h4>Descrizione completa / Termini e condizioni</h4><div class="modal-terms" style="color:var(--muted)">Nessun T&amp;C completo disponibile per questa offerta. ${o.note ? 'Vedi la nota qui sotto.' : ''}</div></div>`;
+  // Solo il riassunto per punti (Attivazione, Qualificante, Requisito
+  // giocata, Bonus, ...): il testo completo dei T&C resta sul sito del
+  // bookmaker (pulsante qui sotto).
   const noteHtml = o.note
-    ? `<div class="modal-section"><h4>Nota</h4><div class="modal-terms">${escapeHtml(o.note)}</div></div>`
-    : '';
+    ? `<div class="modal-section"><h4>Riassunto</h4><div class="modal-terms">${escapeHtml(o.note)}</div></div>`
+    : `<div class="modal-section"><h4>Riassunto</h4><div class="modal-terms" style="color:var(--muted)">Nessun riassunto disponibile: apri la promo sul sito del bookmaker.</div></div>`;
   const expiredHtml = isOfferExpired(o)
     ? `<div class="modal-section"><div class="modal-terms" style="color:var(--danger)">⌛ Offerta scaduta${offerExpiredOn(o) ? ' il ' + offerExpiredOn(o) : ''}: ${escapeHtml(offerExpiredReason(o))}</div></div>`
     : '';
@@ -2714,7 +2716,6 @@ function openOfferModal(id){
         <div class="modal-fact"><div class="lbl">Wagering</div><div class="val">${escapeHtml(o.wager) || '—'}</div></div>
       </div>
       ${expiredHtml}
-      ${termsHtml}
       ${noteHtml}
       <div class="modal-actions">
         ${linkBtn}

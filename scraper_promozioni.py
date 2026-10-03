@@ -52,7 +52,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from urllib.parse import urljoin, quote_plus
+from urllib.parse import urljoin, quote_plus, urlparse
 
 try:
     from bs4 import BeautifulSoup
@@ -136,6 +136,7 @@ TERMS_VALUE_CHARS = 700
 # un montepremi/classifica e non il valore del bonus del singolo giocatore.
 TERMS_EXCLUDE_KEYWORDS = [
     "montepremi", "in palio", "leaderboard", "accumula punti", "scala la classifica",
+    "bonus progressivo",
 ]
 
 # Anti-blocco IP: dopo N errori consecutivi su un bookmaker, lo si mette in
@@ -809,6 +810,8 @@ CATEGORY_KEYWORDS = {
     "Benvenuto": [
         "benvenuto", "welcome", "nuovi clienti", "nuovo cliente", "primo deposito",
         "prima ricarica", "registrati e", "registrazione", "iscriviti",
+        "nuovi players", "nuovi player", "nuovi giocatori", "nuovo giocatore",
+        "nuovi utenti", "nuovi iscritti", "solo nuovi", "1° deposito",
     ],
     "Rimborso": [
         "rimborso", "cashback", "risk free", "denaro indietro", "ti rimborsiamo",
@@ -823,6 +826,39 @@ def classify_category(text):
         if any(k in low for k in kws):
             return category
     return "Ricorrenti"
+
+
+# Molte promo di benvenuto hanno una card che non lo dice (es. William Hill:
+# "Offerta valida fino al 4 Ottobre 2026. Fino a 100€ in Bonus"): lo si
+# capisce dall'indirizzo della pagina (".../bonus-benvenuto-sport-spid") o dai
+# T&C ("il bonus e' rivolto ai nuovi players"). Nei T&C si cercano solo frasi
+# che indicano chiaramente i nuovi clienti: parole come "benvenuto" o
+# "registrazione" compaiono anche nei menu del sito e darebbero falsi positivi.
+WELCOME_TERMS_RE = re.compile(
+    r"\bnuov[oi]\s+(?:players?|giocator[ei]|client[ei]|utent[ei]|iscritt[oi]|registrat[oi])\b"
+    r"|\bsolo\s+nuovi\b|\bnuove\s+registrazioni\b",
+    re.IGNORECASE)
+WELCOME_URL_RE = re.compile(r"benvenuto|welcome", re.IGNORECASE)
+TERMS_CATEGORY_CHARS = 2500
+
+
+def classify_with_context(card_text, url="", terms=""):
+    """Categoria della promo usando, oltre al testo della card, l'indirizzo
+    della pagina di dettaglio e l'inizio dei T&C (solo per riconoscere i
+    bonus di benvenuto)."""
+    categoria = classify_category(card_text)
+    if categoria == "Benvenuto":
+        return categoria
+    if WELCOME_URL_RE.search(urlparse(url or "").path) or WELCOME_TERMS_RE.search(card_text) \
+            or WELCOME_TERMS_RE.search((terms or "")[:TERMS_CATEGORY_CHARS]):
+        return "Benvenuto"
+    return categoria
+
+
+# "Bonus progressivo" (percentuale crescente col numero di selezioni della
+# multipla): non sfruttabile, sempre scartato, anche quando la card lo
+# scrive come "bonus multipla progressivo".
+BONUS_PROGRESSIVO_RE = re.compile(r"bonus\s+(?:multipl[ae]\s+)?progressiv", re.IGNORECASE)
 
 
 # Su richiesta esplicita dell'utente (2026-08-16): tra i bonus di benvenuto,
@@ -871,6 +907,8 @@ EXCLUDE_PATTERNS_DEFAULT = [
     # classifica/torneo hanno un valore a bacino condiviso non garantito per
     # il singolo giocatore, stesso motivo di "montepremi".
     "quota maggiorata", "quota potenziata", "classifica", "torneo", "leaderboard",
+    # area personale (es. "Benvenuto, Nome Cognome - Ultimo accesso")
+    "ultimo accesso", "bonus multipla progressivo",
 ]
 
 # Meccanismi di bonus riconosciuti come potenzialmente calcolabili (matched
@@ -1065,8 +1103,12 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
         if value <= 0:
             n_zero_value += 1
             continue
-        categoria = classify_category(full_search_text)
-        if categoria == "Benvenuto" and not is_sport_or_slot_welcome(full_search_text):
+        if BONUS_PROGRESSIVO_RE.search(it["title"] + " " + full_text):
+            n_zero_value += 1
+            continue
+        categoria = classify_with_context(it["title"] + " " + full_text, detail_url)
+        if categoria == "Benvenuto" and not is_sport_or_slot_welcome(
+                full_search_text + " " + urlparse(detail_url).path.replace("-", " ")):
             n_non_sport_slot += 1
             continue
         # Il T&C completo viene ricavato dalla stessa pagina di dettaglio gia'
@@ -1093,6 +1135,7 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
             n_scadute += 1
             continue
         offer["note"] = (offer.pop("_riassunto", "") or it["snippet"]) + override_note
+        offer["snippet"] = it["snippet"]
         results.append(offer)
     if n_zero_value:
         print(f"   -{n_zero_value} scartate: nessun valore economico individuabile (mostrerebbero €0)")
@@ -1238,6 +1281,8 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
     n_value_from_terms = 0
     n_prize_pool = 0
     n_scadute = 0
+    n_progressivo = 0
+    n_non_sport_slot = 0
     for r in candidates:
         snippet = r.pop("_snippet")
         card_text = r.pop("_card_text")
@@ -1248,6 +1293,17 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
             # Torneo/classifica/premi in palio: gli importi sono il montepremi,
             # non un bonus del singolo giocatore.
             n_prize_pool += 1
+            continue
+        if BONUS_PROGRESSIVO_RE.search(r["title"] + " " + card_text):
+            n_progressivo += 1
+            continue
+        # Categoria rivista con indirizzo della pagina e T&C: molte promo di
+        # benvenuto non lo dicono nella card.
+        card_full = r["title"] + " " + card_text
+        r["categoria"] = classify_with_context(card_full, r.get("url", ""), terms)
+        if r["categoria"] == "Benvenuto" and not is_sport_or_slot_welcome(
+                card_full + " " + urlparse(r.get("url", "")).path.replace("-", " ")):
+            n_non_sport_slot += 1
             continue
         if value <= 0 and terms:
             value = guess_bonus_value(terms[:TERMS_VALUE_CHARS])
@@ -1274,6 +1330,7 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
         # Nota = riassunto per punti chiave; se nel testo non si trova nessun
         # punto, resta la descrizione breve della card.
         r["note"] = (r.pop("_riassunto", "") or snippet) + override_note
+        r["snippet"] = snippet
         results.append(r)
     if n_value_from_terms:
         print(f"   {n_value_from_terms} promo con importo letto dalla pagina di dettaglio (la card non lo riporta)")
@@ -1283,6 +1340,10 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
         print(f"   -{n_zero_value} scartate: nessun valore economico individuabile (mostrerebbero €0)")
     if n_scadute:
         print(f"   -{n_scadute} scartate: promo gia' scaduta o terminata")
+    if n_progressivo:
+        print(f"   -{n_progressivo} scartate: bonus progressivo (non sfruttabile)")
+    if n_non_sport_slot:
+        print(f"   -{n_non_sport_slot} scartate dopo i T&C: bonus di benvenuto non sport/slot")
 
     return results, "ok"
 
@@ -1571,14 +1632,36 @@ def main():
         # dell'app: vanno escluse dal controllo, altrimenti qualunque promo
         # (anche poker/bingo) sembrerebbe "slot" solo per via dell'avviso.
         raw_note = o.get("note", "").split(" | ")[0]
-        text = o.get("title", "") + " " + raw_note
+        # I filtri valgono sul testo della CARD (titolo + descrizione breve,
+        # campo "snippet"), come quando la promo e' stata letta. La nota ora e'
+        # il riassunto per punti, ricavato anche dai T&C: puo' contenere testo
+        # del sito (menu, "recupera password"...) che farebbe scartare per
+        # sbaglio promo valide. Le promo salvate prima del campo "snippet"
+        # usano la nota solo se non e' un riassunto per punti.
+        snippet = o.get("snippet")
+        if snippet is None:
+            snippet = "" if raw_note.lstrip().startswith("•") else raw_note
+        text = o.get("title", "") + " " + snippet
         low = text.lower()
         if any(p in low for p in exclude_keywords):
+            return False
+        if BONUS_PROGRESSIVO_RE.search(text) or BONUS_PROGRESSIVO_RE.search((o.get("terms") or "")[:TERMS_VALUE_CHARS]):
             return False
         if not o.get("value"):
             return False
         categoria = o.get("categoria") or classify_category(text)
-        if categoria == "Benvenuto" and not is_sport_or_slot_welcome(text):
+        if categoria != "Benvenuto":
+            # regole di categoria aggiornate: indirizzo della pagina e
+            # "nuovi players" nei T&C (vedi classify_with_context)
+            categoria = classify_with_context(o.get("title", ""), o.get("url", ""), o.get("terms", ""))
+            if categoria == "Benvenuto":
+                o["categoria"] = categoria
+        path_words = urlparse(o.get("url", "")).path.replace("-", " ")
+        welcome_text = text + " " + raw_note + " " + path_words
+        if o.get("snippet") is None:
+            # promo salvata senza il testo della card: si guarda anche l'inizio dei T&C
+            welcome_text += " " + (o.get("terms") or "")[:TERMS_CATEGORY_CHARS]
+        if categoria == "Benvenuto" and not is_sport_or_slot_welcome(welcome_text):
             return False
         return True
 
@@ -1586,6 +1669,7 @@ def main():
     for o in existing:
         if "categoria" not in o:
             o["categoria"] = classify_category(o.get("title", "") + " " + o.get("note", ""))
+
 
     # Bookmaker letti con successo in questo run: per loro, una promo salvata
     # che non compare piu' e' davvero sparita dal sito. Per i bookmaker non
