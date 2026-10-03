@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Lettore Promozioni (ADM)",
+  "version": "1.0",
+  "description": "Legge le promozioni dalle pagine che apri nel tuo Chrome (Sisal, Snai, Goldbet e altri bloccati dall'anti-bot) e le invia al bridge locale per MatchBetting_Assistant.",
+  "permissions": ["activeTab", "scripting", "tabs", "storage"],
+  "host_permissions": [
+    "https://*.sisal.it/*",
+    "https://*.snai.it/*",
+    "https://*.goldbet.it/*",
+    "https://*.starvegas.it/*",
+    "https://*.starcasino.it/*",
+    "https://*.admiralbet.it/*",
+    "https://*.betwin360.it/*",
+    "https://*.eplay24.it/*",
+    "https://*.quigioco.it/*",
+    "http://127.0.0.1:8766/*"
+  ],
+  "optional_host_permissions": ["https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Lettore Promozioni"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.sisal.it/*",
+        "https://*.snai.it/*",
+        "https://*.goldbet.it/*",
+        "https://*.starvegas.it/*",
+        "https://*.starcasino.it/*",
+        "https://*.admiralbet.it/*",
+        "https://*.betwin360.it/*",
+        "https://*.eplay24.it/*",
+        "https://*.quigioco.it/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html"
+}

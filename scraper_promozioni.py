@@ -41,13 +41,16 @@ Output:
     promozioni.json (nella stessa cartella) — da importare nell'app.
 """
 
+
 import json
+import queue
 import random
 import re
 import subprocess
 import sys
+import threading
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urljoin, quote_plus
 
@@ -67,6 +70,13 @@ except ImportError:
 
 
 HERE = Path(__file__).parent
+
+# Riassunto per punti chiave (Attivazione, Qualificante, Requisito giocata,
+# Bonus, Dove spenderlo, Rollover / cap, Real bonus, Scadenze): stessa logica
+# usata dal bridge dell'estensione Chrome, cosi' le note hanno lo stesso
+# formato qualunque sia la fonte. Solo regex, nessuna API.
+sys.path.insert(0, str(HERE))
+from riassunto_promo import riassumi, e_scaduta  # noqa: E402
 CONFIG_PATH = HERE / "scraper_config.json"
 OUTPUT_PATH = HERE / "promozioni.json"
 STATE_PATH = HERE / "scraper_state.json"
@@ -75,24 +85,58 @@ GIT_PUSH_TIMEOUT_SEC = 30
 
 # Cartella dove viene salvato un dump HTML dell'ultima pagina non riconosciuta
 # per ogni bookmaker (sovrascritto ad ogni run, non accumula file): serve per
-# diagnosticare in un secondo momento (es. senza aprire un browser) se un
-# selettore CSS non funziona piu' perche' il sito ha cambiato struttura.
+# diagnosticare in un secondo momento se un selettore CSS non funziona piu'.
 DEBUG_DIR = HERE / "debug_pages"
 
 # Errori di rete considerati "transitori" (probabile blocco anti-bot
-# temporaneo, WAF, o hiccup di connessione): vale la pena riprovare invece di
-# arrendersi subito al primo tentativo.
+# temporaneo, WAF, o hiccup di connessione): vale la pena riprovare.
 TRANSIENT_ERROR_MARKERS = [
     "timeout", "err_http2_protocol_error", "err_connection_reset",
     "err_connection_closed", "err_connection_refused", "err_empty_response",
     "err_network_changed", "net::err_aborted",
 ]
-FETCH_RETRIES = 2  # tentativi aggiuntivi oltre al primo, solo per errori transitori
-RETRY_DELAY_SEC = (4, 9)  # intervallo casuale di attesa tra un tentativo e l'altro
+FETCH_RETRIES = 1  # tentativi aggiuntivi oltre al primo, solo per errori transitori
+RETRY_DELAY_SEC = (3, 6)  # intervallo casuale di attesa tra un tentativo e l'altro
+
+# Bookmaker letti in parallelo (un browser, una pagina per worker).
+PARALLEL_WORKERS = 4
+# Risorse pesanti che non servono a leggere le promo: non vengono scaricate,
+# il caricamento delle pagine e' molto piu' veloce.
+BLOCKED_RESOURCE_TYPES = {"image", "media", "font"}
+NETWORKIDLE_TIMEOUT_MS = 3000
+
+# Pagina di blocco anti-bot (Akamai e simili): il sito risponde, ma con una
+# pagina "Access Denied" invece delle promozioni.
+BLOCKED_PAGE_MARKERS = [
+    "<title>access denied</title>", "errors.edgesuite.net",
+    "you don't have permission to access",
+]
+# Errori di rete che indicano un blocco anti-bot (non un problema temporaneo):
+# il bookmaker va in pausa piu' a lungo invece di essere ritentato ogni run.
+BLOCKED_ERROR_MARKERS = ["err_http2_protocol_error"]
+BLOCKED_COOLDOWN_HOURS = 24
+
+# Storico delle promo: una promo non piu' vista sul sito per STALE_DAYS giorni
+# viene segnata come scaduta; le scadute restano in promozioni.json per
+# EXPIRED_RETENTION_DAYS giorni (l'app le mostra nella cartella "Scaduti")
+# e poi vengono cancellate.
+STALE_DAYS = 7
+EXPIRED_RETENTION_DAYS = 14
 
 MIN_SNIPPET_LEN = 20
 MAX_SNIPPET_LEN = 220
 MAX_ITEMS_PER_SITE = 12
+# Numero massimo di card lette dalla pagina lista coi selettori CSS (prima
+# dei filtri: molte card vengono poi scartate perche' non monetizzabili).
+MAX_CARDS_PER_SITE = 40
+# Caratteri dei T&C in cui si cerca il valore del bonus (l'importo vero sta
+# quasi sempre nelle prime righe del regolamento).
+TERMS_VALUE_CHARS = 700
+# Parole che, se presenti nel testo, indicano che gli importi trovati sono
+# un montepremi/classifica e non il valore del bonus del singolo giocatore.
+TERMS_EXCLUDE_KEYWORDS = [
+    "montepremi", "in palio", "leaderboard", "accumula punti", "scala la classifica",
+]
 
 # Anti-blocco IP: dopo N errori consecutivi su un bookmaker, lo si mette in
 # "pausa" per alcune ore invece di continuare a martellarlo ad ogni run.
@@ -122,6 +166,23 @@ MAX_CAP_MARKERS = [
 ]
 
 
+# Con i bookmaker letti in parallelo, l'output di ogni worker viene raccolto
+# in un buffer (per thread) e stampato tutto insieme alla fine del bookmaker,
+# cosi' il log resta leggibile.
+_builtin_print = print
+_print_lock = threading.Lock()
+_tls = threading.local()
+
+
+def print(*args, **kwargs):
+    buf = getattr(_tls, "buf", None)
+    if buf is not None and not kwargs:
+        buf.append(" ".join(str(a) for a in args))
+        return
+    with _print_lock:
+        _builtin_print(*args, **kwargs)
+
+
 def load_state():
     if STATE_PATH.exists():
         try:
@@ -148,11 +209,17 @@ def is_in_cooldown(state, name):
     return datetime.now() < until
 
 
-def record_result(state, name, success):
+def record_result(state, name, success, blocked=False):
     entry = state.setdefault(name, {"consecutive_failures": 0, "cooldown_until": None})
     if success:
         entry["consecutive_failures"] = 0
         entry["cooldown_until"] = None
+    elif blocked:
+        # Blocco anti-bot: inutile riprovare al prossimo run, il sito rifiuta
+        # comunque il browser automatico. Pausa lunga subito.
+        entry["consecutive_failures"] = entry.get("consecutive_failures", 0) + 1
+        cooldown_until = datetime.now() + timedelta(hours=BLOCKED_COOLDOWN_HOURS)
+        entry["cooldown_until"] = cooldown_until.isoformat()
     else:
         entry["consecutive_failures"] = entry.get("consecutive_failures", 0) + 1
         if entry["consecutive_failures"] >= MAX_CONSECUTIVE_FAILURES:
@@ -173,7 +240,24 @@ def is_transient_error(exc):
     return any(marker in msg for marker in TRANSIENT_ERROR_MARKERS)
 
 
-def scroll_through_page(page, steps=6, pause_sec=0.5):
+def is_blocked_page(html):
+    low = html[:5000].lower()
+    return any(marker in low for marker in BLOCKED_PAGE_MARKERS)
+
+
+def is_blocked_error(exc):
+    msg = str(exc).lower()
+    return any(marker in msg for marker in BLOCKED_ERROR_MARKERS)
+
+
+def load_error_status(exc):
+    detail = str(exc).splitlines()[0][:80] if str(exc) else exc.__class__.__name__
+    if is_blocked_error(exc):
+        return f"bloccato dal sito (anti-bot: {detail[:40]})"
+    return f"errore di caricamento ({detail})"
+
+
+def scroll_through_page(page, steps=6, pause_sec=0.3):
     """Scorre la pagina dall'alto in basso in piu' passaggi prima di leggerne
     il contenuto. Alcuni siti (es. piattaforma Sisal/Snai/PokerStars e quella
     Goldbet/Lottomatica/Planetwin365) caricano le card promo solo quando
@@ -189,16 +273,28 @@ def scroll_through_page(page, steps=6, pause_sec=0.5):
         pass
 
 
-def fetch_rendered_html(page, url, timeout_ms=25000):
+def fetch_rendered_html(page, url, timeout_ms=25000, wait_selector=""):
     attempt = 0
     while True:
         try:
             page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
-            try:
-                page.wait_for_load_state("networkidle", timeout=8000)
-            except Exception:
-                pass
-            time.sleep(1.5)  # margine per contenuti lazy-load
+            # Se il config indica il selettore delle card, basta aspettare
+            # che compaia; altrimenti si aspetta (poco) che la rete si calmi.
+            # Niente attese fisse lunghe: con le risorse pesanti bloccate le
+            # pagine sono pronte molto prima.
+            waited = False
+            if wait_selector:
+                try:
+                    page.wait_for_selector(wait_selector, timeout=6000)
+                    waited = True
+                except Exception:
+                    pass
+            if not waited:
+                try:
+                    page.wait_for_load_state("networkidle", timeout=NETWORKIDLE_TIMEOUT_MS)
+                except Exception:
+                    pass
+            time.sleep(0.5)
             scroll_through_page(page)
             return page.content()
         except Exception as e:
@@ -233,7 +329,7 @@ def extract_with_selectors(soup, card_sel, title_sel):
     if not card_sel:
         return items
     cards = soup.select(card_sel)
-    for c in cards[:MAX_ITEMS_PER_SITE]:
+    for c in cards[:MAX_CARDS_PER_SITE]:
         title_el = c.select_one(title_sel) if title_sel else c
         title = title_el.get_text(strip=True) if title_el else ""
         text = c.get_text(" ", strip=True)
@@ -272,18 +368,59 @@ def extract_heuristic(soup, keywords):
     return found
 
 
+
+MONTHS_IT = {
+    "gennaio": 1, "febbraio": 2, "marzo": 3, "aprile": 4, "maggio": 5, "giugno": 6,
+    "luglio": 7, "agosto": 8, "settembre": 9, "ottobre": 10, "novembre": 11, "dicembre": 12,
+}
+_NUMERIC_DATE_RE = re.compile(r"\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})\b")
+_TEXT_DATE_RE = re.compile(r"\b(\d{1,2})\s+(" + "|".join(MONTHS_IT) + r")(?:\s+(\d{4}))?\b", re.IGNORECASE)
+# La data deve essere preceduta (entro poche parole) da una frase di scadenza...
+_DEADLINE_MARKER_RE = re.compile(
+    r"(?:fino\s+al(?:le)?|sino\s+al|entro\s+(?:il|le|la)|scade|scadenza|termina|terminer[aà]|valid[oa]\s+fino|\bal)\b[^.;]{0,30}$",
+    re.IGNORECASE)
+# ...e non da "aggiornato al", "pubblicato il" (date del regolamento, non della promo).
+_NOT_DEADLINE_RE = re.compile(r"(?:aggiornat|pubblicat|in vigore)[^.;]{0,30}$", re.IGNORECASE)
+
+
 def guess_deadline(text):
-    # Cerca pattern data tipo 31/12/2026 o 31-12-2026
-    m = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b", text)
-    if not m:
+    """Cerca la data di fine promo nel testo (riepilogo + T&C). Riconosce sia
+    31/12/2026 sia '31 dicembre 2026' (anno facoltativo), ma solo se preceduta
+    da una frase tipo 'fino al', 'entro il', 'scade'. Se ce ne sono piu' d'una
+    prende la piu' lontana: meglio una scadenza un po' larga che far finire tra
+    le scadute una promo ancora attiva."""
+    if not text:
         return ""
-    d, mo, y = m.groups()
-    if len(y) == 2:
-        y = "20" + y
+    today = date.today()
+    found = []
+    for rx in (_NUMERIC_DATE_RE, _TEXT_DATE_RE):
+        for m in rx.finditer(text):
+            before = text[max(0, m.start() - 45):m.start()]
+            if not _DEADLINE_MARKER_RE.search(before) or _NOT_DEADLINE_RE.search(before):
+                continue
+            d, mo, y = m.groups()
+            mo = MONTHS_IT[mo.lower()] if not mo.isdigit() else int(mo)
+            has_year = bool(y)
+            y = int(y) if y else today.year
+            if y < 100:
+                y += 2000
+            try:
+                dt = date(y, mo, int(d))
+            except ValueError:
+                continue
+            if not has_year and dt < today - timedelta(days=180):
+                dt = date(y + 1, mo, int(d))
+            if today.year - 1 <= dt.year <= today.year + 2:
+                found.append(dt)
+    return max(found).isoformat() if found else ""
+
+
+def days_since(iso_day):
     try:
-        return f"{int(y):04d}-{int(mo):02d}-{int(d):02d}"
-    except ValueError:
-        return ""
+        return (date.today() - date.fromisoformat(iso_day[:10])).days
+    except (TypeError, ValueError):
+        return 0
+
 
 
 ONCLICK_URL_PATTERNS = [
@@ -319,6 +456,7 @@ def _is_real_href(href):
     return True
 
 
+
 def extract_image_and_link(card, page_url, page_og_image):
     """Cerca un'immagine e un link 'approfondisci' dentro la card della promo.
     Se la card non ha immagine propria, usa l'og:image dell'intera pagina.
@@ -350,8 +488,10 @@ def extract_image_and_link(card, page_url, page_og_image):
         link = urljoin(page_url, chosen.get("href"))
     else:
         # nessun <a> con href reale: prova con onclick (windowOpen/location.href),
-        # prima sull'anchor stesso poi su qualunque discendente cliccabile.
-        for el in candidates + card.find_all(["button", "div"]):
+        # prima sulla card stessa (molte piattaforme mettono l'onclick sul
+        # contenitore della promo), poi sugli anchor e su qualunque
+        # discendente cliccabile.
+        for el in [card] + candidates + card.find_all(["button", "div"]):
             onclick_url = extract_onclick_url(el)
             if onclick_url:
                 link = urljoin(page_url, onclick_url)
@@ -373,10 +513,10 @@ def extract_image_and_link(card, page_url, page_og_image):
 # se non l'ha gia' fatto in un run precedente (cache) e solo entro un tetto
 # massimo di richieste per run (budget), per non appesantire troppo ogni
 # esecuzione ne' aumentare il rischio di blocco IP.
-MAX_ENRICH_PER_RUN = 40
+MAX_ENRICH_PER_RUN = 60
 MIN_ENRICH_DELAY_SEC = 1.5
 MAX_ENRICH_DELAY_SEC = 3.5
-TERMS_MAX_CHARS = 3000
+TERMS_MAX_CHARS = 6000
 
 # Tag e classi di boilerplate da rimuovere prima di estrarre il testo della
 # pagina di dettaglio: menu, footer, cookie banner, script — non servono e
@@ -420,23 +560,29 @@ def extract_terms_text(html):
 
 def enrich_with_terms(page, offer, terms_cache, run_state, index_url):
     """Popola offer['terms'] con i T&C completi presi dalla pagina di
-    dettaglio della promo (offer['url']), rispettando cache e budget."""
+    dettaglio della promo (offer['url']), rispettando cache e budget.
+    Ritorna True se ha scaricato una nuova pagina di dettaglio."""
+    if offer.get("terms"):
+        return False  # T&C gia' letti (es. dal modale della card)
     key = (offer["book"], offer["title"])
     cached = terms_cache.get(key)
     if cached:
         offer["terms"] = cached
-        return
+        return False
 
     url = offer.get("url", "")
     if not url or url == index_url:
         # nessun link per-promo distinto dalla pagina indice generale: non
         # c'e' una pagina di dettaglio diversa da visitare.
         offer["terms"] = ""
-        return
+        return False
 
-    if run_state["enrich_budget"] <= 0:
-        offer["terms"] = ""
-        return
+    # Il budget e' condiviso tra i worker paralleli.
+    with run_state["lock"]:
+        if run_state["enrich_budget"] <= 0:
+            offer["terms"] = ""
+            return False
+        run_state["enrich_budget"] -= 1
 
     try:
         time.sleep(random.uniform(MIN_ENRICH_DELAY_SEC, MAX_ENRICH_DELAY_SEC))
@@ -444,7 +590,25 @@ def enrich_with_terms(page, offer, terms_cache, run_state, index_url):
         offer["terms"] = extract_terms_text(html)
     except Exception:
         offer["terms"] = ""
-    run_state["enrich_budget"] -= 1
+    return True
+
+
+def extract_modal_text(soup, card):
+    """Alcune piattaforme (es. Netwin, StarYes: card con data-toggle="modal"
+    data-target="#cg-promo-238") non linkano una pagina di dettaglio: la card
+    apre una finestra modale il cui contenuto (descrizione + T&C) e' gia'
+    presente nella stessa pagina, solo nascosto. Lo si legge da li', senza
+    nessuna richiesta aggiuntiva. Ritorna "" se la card non apre un modale."""
+    target = card.get("data-target") or card.get("data-bs-target") or ""
+    if not target.startswith("#"):
+        return ""
+    try:
+        modal = soup.select_one(target)
+    except Exception:
+        return ""  # selettore non valido (id con caratteri strani)
+    if not modal:
+        return ""
+    return re.sub(r"\s+", " ", modal.get_text(" ", strip=True)).strip()[:TERMS_MAX_CHARS]
 
 
 def extract_og_image(soup, page_url):
@@ -553,6 +717,7 @@ def extract_max_cap(text):
     return None
 
 
+
 def guess_value(text):
     """Cerca l'importo piu' plausibile nel testo. I bookmaker scrivono gli
     importi in entrambe le notazioni ('30€' con simbolo dopo, comune in
@@ -561,17 +726,48 @@ def guess_value(text):
     testo (es. 'Deposita 10€, ricevi 30€ di bonus') si prende il piu' grande,
     perche' di solito e' il valore della promo (non il deposito minimo)."""
     values = []
-    for m in re.finditer(r"(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:€|eur\b|euro)", text, re.IGNORECASE):
-        try:
-            values.append(float(m.group(1).replace(",", ".")))
-        except ValueError:
-            pass
-    for m in re.finditer(r"(?:€|eur\b|euro)\s*(\d{1,4}(?:[.,]\d{1,2})?)", text, re.IGNORECASE):
-        try:
-            values.append(float(m.group(1).replace(",", ".")))
-        except ValueError:
-            pass
+    for m in re.finditer(r"(" + _AMOUNT_RE + r")\s*(?:€|eur\b|euro)", text, re.IGNORECASE):
+        values.append(parse_amount(m.group(1)))
+    for m in re.finditer(r"(?:€|eur\b|euro)\s*(" + _AMOUNT_RE + r")", text, re.IGNORECASE):
+        values.append(parse_amount(m.group(1)))
     return max(values) if values else 0
+
+
+# Importo in notazione italiana: "1.000", "5.100", "10", "2,50" (il punto e'
+# il separatore delle migliaia, la virgola quello dei decimali).
+_AMOUNT_RE = r"(?<![\d.,])(?:\d{1,3}(?:\.\d{3})+|\d{1,5})(?:,\d{1,2})?"
+
+
+def parse_amount(s):
+    return float(s.replace(".", "").replace(",", "."))
+
+
+_BONUS_WORDS = r"(?:bonus|free\s?bet|freebet|cashback|rimborso|fun\s?bonus|credito)"
+_BONUS_AMOUNT_RES = [
+    # "bonus fino a 100€", "free bet da 5 euro"
+    re.compile(_BONUS_WORDS + r"[^.€\d]{0,40}?(" + _AMOUNT_RE + r")\s*(?:€|eur\b|euro)", re.IGNORECASE),
+    # "bonus di €100"
+    re.compile(_BONUS_WORDS + r"[^.€\d]{0,40}?(?:€|eur\b|euro)\s*(" + _AMOUNT_RE + r")", re.IGNORECASE),
+    # "100€ di bonus"
+    re.compile(r"(" + _AMOUNT_RE + r")\s*(?:€|eur\b|euro)[^.€\d]{0,20}?" + _BONUS_WORDS, re.IGNORECASE),
+    # "deposito ... fino a 100€" (bonus pari al deposito)
+    re.compile(r"(?:deposito|ricarica|versamento)[^.€\d]{0,20}?fino\s+a\s+(" + _AMOUNT_RE + r")\s*(?:€|eur\b|euro)", re.IGNORECASE),
+]
+
+
+def guess_bonus_value(text):
+    """Importo della promo letto dai T&C quando la card non lo riporta. Nei T&C
+    compaiono molti importi (deposito minimo, vincita massima, puntata...):
+    invece del piu' grande si prende il PRIMO importo legato esplicitamente a
+    una parola come bonus/free bet/cashback, di solito quello del titolo della
+    promo. Se non ce n'e' nessuno ritorna 0 (la promo verra' scartata)."""
+    best = None
+    for rx in _BONUS_AMOUNT_RES:
+        m = rx.search(text)
+        if m and (best is None or m.start() < best.start()):
+            best = m
+    return parse_amount(best.group(1)) if best else 0
+
 
 
 # Alcune promo hanno un valore "di facciata" fuorviante rispetto al profitto
@@ -763,6 +959,7 @@ MIN_DETAIL_DELAY_SEC = 1.2
 MAX_DETAIL_DELAY_SEC = 3
 
 
+
 def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
     """Modalita' 'a due passaggi' per siti dove la pagina indice mostra solo
     banner-immagine senza testo estraibile (es. piattaforma Eplay24/Betwin360/
@@ -782,8 +979,12 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
         html = fetch_rendered_html(page, url)
     except Exception as e:
         print(f"   [SALTATO] Errore di caricamento indice: {e}")
-        detail = str(e).splitlines()[0][:80] if str(e) else e.__class__.__name__
-        return [], f"errore di caricamento ({detail})"
+        return [], load_error_status(e)
+
+    if is_blocked_page(html):
+        save_debug_page(name, html)
+        print("   [BLOCCATO] il sito ha risposto 'Access Denied' (protezione anti-bot)")
+        return [], "bloccato dal sito (anti-bot: Access Denied)"
 
     soup = BeautifulSoup(html, "html.parser")
     anchors = soup.select(link_sel) if link_sel else []
@@ -850,6 +1051,7 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
     results = []
     n_zero_value = 0
     n_non_sport_slot = 0
+    n_scadute = 0
     for it in items:
         detail_url = it["_detail_url"]
         dsoup = it["_page_soup"]
@@ -871,26 +1073,57 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
         # visitata (nessuna richiesta aggiuntiva): decompose() e' distruttivo,
         # quindi va chiamato per ultimo su questo soup.
         terms = extract_terms_from_soup(dsoup)
-        results.append({
+        offer = {
             "book": name,
             "title": it["title"],
             "value": value,
-            "deadline": guess_deadline(it["snippet"]),
+            "deadline": "",
             "wager": "",
             "status": "Da iniziare",
             "categoria": categoria,
-            "note": f"[auto {datetime.now().strftime('%Y-%m-%d')}] {it['snippet']} — fonte: {detail_url}{override_note}",
+            "note": "",
             "image": image,
             "url": detail_url,
             "max_cap": max_cap,
             "candidate_slots": candidate_slots,
             "terms": terms,
-        })
+        }
+        if not completa_con_riassunto(offer, full_text + " " + terms,
+                                      guess_deadline(it["snippet"] + " " + terms)):
+            n_scadute += 1
+            continue
+        offer["note"] = (offer.pop("_riassunto", "") or it["snippet"]) + override_note
+        results.append(offer)
     if n_zero_value:
         print(f"   -{n_zero_value} scartate: nessun valore economico individuabile (mostrerebbero €0)")
     if n_non_sport_slot:
         print(f"   -{n_non_sport_slot} scartate: bonus di benvenuto non sport/slot (casino'/poker/bingo/altro)")
+    if n_scadute:
+        print(f"   -{n_scadute} scartate: promo gia' scaduta o terminata")
     return results, "ok"
+
+
+
+def completa_con_riassunto(offer, testo, deadline_hint):
+    """Applica il riassunto per punti chiave (riassunto_promo.py) a una promo
+    gia' costruita: note, scadenza, wagering, e in mancanza d'altro valore,
+    cap e slot. Ritorna False se la promo risulta scaduta (data di fine
+    passata o testo tipo "promozione terminata"): in quel caso va scartata."""
+    rs = riassumi(testo)
+    deadline = deadline_hint or rs["deadline"]
+    if e_scaduta(deadline, testo):
+        return False
+    offer["deadline"] = deadline
+    offer["wager"] = rs["wager"]
+    if rs["note"]:
+        offer["_riassunto"] = rs["note"]
+    if offer.get("value", 0) <= 0 and rs["value"]:
+        offer["value"] = rs["value"]
+    if offer.get("max_cap") is None and rs["max_cap"] is not None:
+        offer["max_cap"] = rs["max_cap"]
+    if not offer.get("candidate_slots") and rs["slots"]:
+        offer["candidate_slots"] = rs["slots"]
+    return True
 
 
 def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords, terms_cache, run_state):
@@ -902,11 +1135,15 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
 
     print(f"-> {name}: {url}")
     try:
-        html = fetch_rendered_html(page, url)
+        html = fetch_rendered_html(page, url, wait_selector=bm.get("card_selector", ""))
     except Exception as e:
         print(f"   [SALTATO] Errore di caricamento: {e}")
-        detail = str(e).splitlines()[0][:80] if str(e) else e.__class__.__name__
-        return [], f"errore di caricamento ({detail})"
+        return [], load_error_status(e)
+
+    if is_blocked_page(html):
+        save_debug_page(name, html)
+        print("   [BLOCCATO] il sito ha risposto 'Access Denied' (protezione anti-bot)")
+        return [], "bloccato dal sito (anti-bot: Access Denied)"
 
     soup = BeautifulSoup(html, "html.parser")
     page_og_image = extract_og_image(soup, url)
@@ -948,23 +1185,10 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
 
     scarti_txt = f", {n_scartate} scartate come non monetizzabili/doppioni" if n_scartate else ""
     print(f"   trovate {len(items)} promo ({method}{scarti_txt})")
-    results = []
-    n_zero_value = 0
+    candidates = []
     n_non_sport_slot = 0
     for it in items:
-        image, link = extract_image_and_link(it["el"], url, page_og_image)
-        full_text = it["el"].get_text(" ", strip=True)
-        candidate_slots = extract_candidate_slots(full_text)
-        max_cap = extract_max_cap(full_text)
         full_search_text = it["title"] + " " + it["snippet"]
-        value, override_note = apply_value_override(full_search_text, guess_value(it["snippet"]))
-        if value <= 0:
-            # Promo senza un valore economico individuabile: su richiesta
-            # esplicita dell'utente, scartata invece di essere mostrata a €0
-            # (spesso e' rumore: link generici, giochi non a valore garantito,
-            # o semplicemente testo troppo vago per stimare un importo).
-            n_zero_value += 1
-            continue
         categoria = classify_category(full_search_text)
         if categoria == "Benvenuto" and not is_sport_or_slot_welcome(full_search_text):
             # Tra i bonus di benvenuto, su richiesta esplicita dell'utente si
@@ -972,44 +1196,96 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
             # verticali vengono scartate.
             n_non_sport_slot += 1
             continue
-        results.append({
+        image, link = extract_image_and_link(it["el"], url, page_og_image)
+        modal_terms = extract_modal_text(soup, it["el"])
+        candidates.append({
+            "terms": modal_terms,
             "book": name,
             "title": it["title"],
-            "value": value,
-            "deadline": guess_deadline(it["snippet"]),
+            "value": guess_value(it["snippet"]),
+            "deadline": "",
             "wager": "",
             "status": "Da iniziare",
             "categoria": categoria,
-            "note": f"[auto {datetime.now().strftime('%Y-%m-%d')}] {it['snippet']} — fonte: {url}{override_note}",
             "image": image,
             "url": link,
-            "max_cap": max_cap,
-            "candidate_slots": candidate_slots,
+            "_snippet": it["snippet"],
+            "_card_text": it["el"].get_text(" ", strip=True),
         })
-    if n_zero_value:
-        print(f"   -{n_zero_value} scartate: nessun valore economico individuabile (mostrerebbero €0)")
     if n_non_sport_slot:
         print(f"   -{n_non_sport_slot} scartate: bonus di benvenuto non sport/slot (casino'/poker/bingo/altro)")
 
     # Arricchimento con i T&C completi dalla pagina di dettaglio di ogni
     # singola promo (link estratto dalla card): rispetta cache (non ri-scarica
     # promo gia' arricchite in un run precedente) e budget per-run condiviso
-    # tra tutti i bookmaker, per restare dentro tempi/traffico ragionevoli.
-    # Attivo di default su tutti; disattivabile per singolo bookmaker con
-    # "enrich_terms": false in scraper_config.json se in futuro un sito
-    # specifico desse problemi (redirect loop, pagine di dettaglio inutili...).
+    # tra tutti i bookmaker. Va fatto PRIMA del calcolo del valore: molte
+    # card non riportano l'importo, che sta solo nella pagina di dettaglio.
+    # Le promo senza importo nella card vengono arricchite per prime (sono
+    # quelle a cui i T&C servono di piu').
+    # Disattivabile per singolo bookmaker con "enrich_terms": false in
+    # scraper_config.json.
     if bm.get("enrich_terms", True):
         enriched_now = 0
-        for r in results:
-            budget_before = run_state["enrich_budget"]
-            enrich_with_terms(page, r, terms_cache, run_state, url)
-            if run_state["enrich_budget"] < budget_before:
+        for r in sorted(candidates, key=lambda r: r["value"] > 0):
+            if enrich_with_terms(page, r, terms_cache, run_state, url):
                 enriched_now += 1
         if enriched_now:
             print(f"   +{enriched_now} T&C completi scaricati dalla pagina di dettaglio "
                   f"(budget rimanente questo run: {run_state['enrich_budget']})")
 
+    results = []
+    n_zero_value = 0
+    n_value_from_terms = 0
+    n_prize_pool = 0
+    n_scadute = 0
+    for r in candidates:
+        snippet = r.pop("_snippet")
+        card_text = r.pop("_card_text")
+        terms = r.get("terms", "")
+        value = r["value"]
+        terms_head = terms[:TERMS_VALUE_CHARS].lower()
+        if any(k in terms_head for k in TERMS_EXCLUDE_KEYWORDS):
+            # Torneo/classifica/premi in palio: gli importi sono il montepremi,
+            # non un bonus del singolo giocatore.
+            n_prize_pool += 1
+            continue
+        if value <= 0 and terms:
+            value = guess_bonus_value(terms[:TERMS_VALUE_CHARS])
+            if value > 0:
+                n_value_from_terms += 1
+        # Riassunto per punti + scarto delle promo gia' scadute.
+        r["value"] = value
+        r["max_cap"] = extract_max_cap(card_text)
+        if r["max_cap"] is None and terms:
+            r["max_cap"] = extract_max_cap(terms)
+        r["candidate_slots"] = extract_candidate_slots(card_text) or extract_candidate_slots(terms)
+        if not completa_con_riassunto(r, card_text + " " + terms, guess_deadline(snippet + " " + terms)):
+            n_scadute += 1
+            continue
+        value, override_note = apply_value_override(r["title"] + " " + snippet, r["value"])
+        if value <= 0:
+            # Promo senza un valore economico individuabile: su richiesta
+            # esplicita dell'utente, scartata invece di essere mostrata a €0
+            # (spesso e' rumore: link generici, giochi non a valore garantito,
+            # o semplicemente testo troppo vago per stimare un importo).
+            n_zero_value += 1
+            continue
+        r["value"] = value
+        # Nota = riassunto per punti chiave; se nel testo non si trova nessun
+        # punto, resta la descrizione breve della card.
+        r["note"] = (r.pop("_riassunto", "") or snippet) + override_note
+        results.append(r)
+    if n_value_from_terms:
+        print(f"   {n_value_from_terms} promo con importo letto dalla pagina di dettaglio (la card non lo riporta)")
+    if n_prize_pool:
+        print(f"   -{n_prize_pool} scartate: torneo/premi in palio secondo la pagina di dettaglio")
+    if n_zero_value:
+        print(f"   -{n_zero_value} scartate: nessun valore economico individuabile (mostrerebbero €0)")
+    if n_scadute:
+        print(f"   -{n_scadute} scartate: promo gia' scaduta o terminata")
+
     return results, "ok"
+
 
 
 # ---------------------------------------------------------------------------
@@ -1067,7 +1343,86 @@ def publish_to_git():
         print(f"[pubblicazione online] errore imprevisto, non blocca lo scraping: {e}")
 
 
+
+def new_page(browser):
+    context = browser.new_context(
+        locale="it-IT",
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    )
+
+    # Immagini, video e font non servono a leggere le promo (l'URL
+    # dell'immagine resta comunque nell'HTML): non scaricarli rende ogni
+    # pagina molto piu' veloce.
+    def skip_heavy_resources(route):
+        if route.request.resource_type in BLOCKED_RESOURCE_TYPES:
+            route.abort()
+        else:
+            route.continue_()
+
+    context.route("**/*", skip_heavy_resources)
+    return context.new_page()
+
+
+def merge_with_expiry(existing, all_offers, ok_books):
+    """Unisce le promo gia' salvate con quelle trovate in questo run e ne
+    aggiorna lo stato di scadenza (vedi STALE_DAYS/EXPIRED_RETENTION_DAYS).
+    Ritorna (lista_promo, numero_promo_cancellate)."""
+    today = date.today().isoformat()
+    old_by_key = {(o["book"], o["title"]): o for o in existing}
+
+    def mark_expired(o, reason):
+        if not o.get("expired"):
+            o["expired"] = True
+            o["expired_on"] = today
+            o["expired_reason"] = reason
+
+    merged = {}
+    for o in existing:
+        # Promo salvate prima dell'introduzione dello storico: la data in
+        # cui sono state viste l'ultima volta si ricava dalla nota "[auto ...]".
+        if not o.get("last_seen"):
+            m = re.search(r"\[auto (\d{4}-\d{2}-\d{2})\]", o.get("note", ""))
+            o["last_seen"] = m.group(1) if m else today
+        o.setdefault("first_seen", o["last_seen"])
+        if o["book"] in ok_books:
+            mark_expired(o, "non più presente sul sito del bookmaker")
+        elif days_since(o["last_seen"]) >= STALE_DAYS:
+            mark_expired(o, f"non riconfermata da oltre {STALE_DAYS} giorni (sito del bookmaker non leggibile)")
+        merged[(o["book"], o["title"])] = o
+
+    for o in all_offers:
+        key = (o["book"], o["title"])
+        old = old_by_key.get(key)
+        o["first_seen"] = (old or {}).get("first_seen") or today
+        o["last_seen"] = today
+        o["expired"] = False
+        o.pop("expired_on", None)
+        o.pop("expired_reason", None)
+        merged[key] = o
+
+    for o in merged.values():
+        if not o.get("expired") and o.get("deadline") and o["deadline"] < today:
+            mark_expired(o, f"scadenza superata ({o['deadline']})")
+
+    kept = [o for o in merged.values()
+            if not (o.get("expired") and days_since(o.get("expired_on", today)) > EXPIRED_RETENTION_DAYS)]
+    return kept, len(merged) - len(kept)
+
+
+def close_browser(browser, page):
+    # Le route attive (blocco immagini/font) generano errori rumorosi se il
+    # browser viene chiuso mentre una richiesta e' ancora in volo.
+    try:
+        page.context.unroute_all(behavior="ignoreErrors")
+    except Exception:
+        pass
+    browser.close()
+
+
+
 def main():
+    started = time.monotonic()
     config = load_config()
     bookmakers = list(config.get("bookmakers", []))
     keywords = [k.lower() for k in config.get("keywords", [])]
@@ -1076,8 +1431,8 @@ def main():
     state = load_state()
 
     # Carica le promozioni gia' salvate PRIMA di scrapare: serve sia per il
-    # merge finale (invariato) sia per costruire la cache dei T&C gia'
-    # scaricati in run precedenti, cosi' non li ri-scarichiamo ogni volta.
+    # merge finale sia per costruire la cache dei T&C gia' scaricati in run
+    # precedenti, cosi' non li ri-scarichiamo ogni volta.
     existing = []
     if OUTPUT_PATH.exists():
         try:
@@ -1086,7 +1441,7 @@ def main():
         except (json.JSONDecodeError, OSError):
             existing = []
     terms_cache = {(o["book"], o["title"]): o["terms"] for o in existing if o.get("terms")}
-    run_state = {"enrich_budget": MAX_ENRICH_PER_RUN}
+    run_state = {"enrich_budget": MAX_ENRICH_PER_RUN, "lock": threading.Lock()}
 
     # Ordine casuale ad ogni run: un pattern di richieste sempre identico
     # (stessa sequenza, stessi orari) e' piu' facile da riconoscere come bot.
@@ -1095,36 +1450,73 @@ def main():
     all_offers = []
     log = []
 
+    todo = queue.Queue()
+    for bm in bookmakers:
+        name = bm["name"]
+        if bm.get("estensione"):
+            # Book che rifiutano il browser automatico (anti-bot): si leggono
+            # con l'estensione Chrome "Lettore Promozioni" (vedi
+            # LEGGIMI_estensione_promozioni.md). Nessun tentativo, nessun cooldown.
+            print(f"-> {name}: bloccato dall'anti-bot, si legge con l'estensione Chrome (salto)")
+            log.append({"bookmaker": name, "status": "via estensione Chrome (non automatico)", "trovate": 0})
+            continue
+        if is_in_cooldown(state, name):
+            until = state[name]["cooldown_until"]
+            print(f"-> {name}: in pausa fino a {until} (troppi errori o blocco del sito, salto)")
+            log.append({"bookmaker": name, "status": "in pausa (cooldown anti-blocco)", "trovate": 0})
+            continue
+        todo.put(bm)
+
+    results = []
+
+    def worker():
+        # Ogni worker ha il suo browser (Playwright sync non e' thread-safe)
+        # e prende i bookmaker dalla coda finche' non e' vuota.
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = new_page(browser)
+            while True:
+                try:
+                    bm = todo.get_nowait()
+                except queue.Empty:
+                    break
+                _tls.buf = []
+                try:
+                    offers, status = scrape_bookmaker(page, bm, keywords, monetizable_keywords,
+                                                      exclude_keywords, terms_cache, run_state)
+                except Exception as e:
+                    print(f"   [ERRORE IMPREVISTO] {e}")
+                    offers, status = [], f"errore imprevisto ({str(e).splitlines()[0][:60] if str(e) else e})"
+                lines, _tls.buf = _tls.buf, None
+                with _print_lock:
+                    for line in lines:
+                        _builtin_print(line)
+                    sys.stdout.flush()
+                results.append((bm["name"], offers, status))
+                # Ritardo casuale tra un bookmaker e l'altro, non fisso.
+                time.sleep(random.uniform(MIN_DELAY_SEC, MAX_DELAY_SEC))
+            close_browser(browser, page)
+
+    n_workers = max(1, min(PARALLEL_WORKERS, todo.qsize()))
+    threads = [threading.Thread(target=worker, name=f"W{i + 1}") for i in range(n_workers)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    for name, offers, status in results:
+        all_offers.extend(offers)
+        log.append({"bookmaker": name, "status": status, "trovate": len(offers)})
+        record_result(state, name,
+                      success=(status in ("ok", "nessuna promo riconosciuta", "nessuna promo monetizzabile")),
+                      blocked=status.startswith("bloccato"))
+
+    # Lookup RTP/volatilita' per le slot candidate individuate nelle promo,
+    # con un tetto massimo di ricerche per run. Il browser viene aperto solo
+    # se c'e' almeno una slot da cercare.
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
-            locale="it-IT",
-            user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"),
-        )
-        page = context.new_page()
-
-        for bm in bookmakers:
-            name = bm["name"]
-
-            if is_in_cooldown(state, name):
-                until = state[name]["cooldown_until"]
-                print(f"-> {name}: in pausa fino a {until} (troppi errori consecutivi, salto)")
-                log.append({"bookmaker": name, "status": "in pausa (cooldown anti-blocco)", "trovate": 0})
-                continue
-
-            offers, status = scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
-                                               terms_cache, run_state)
-            all_offers.extend(offers)
-            log.append({"bookmaker": name, "status": status, "trovate": len(offers)})
-            record_result(state, name, success=(status in ("ok", "nessuna promo riconosciuta", "nessuna promo monetizzabile")))
-
-            # Ritardo casuale tra un bookmaker e l'altro, non fisso.
-            time.sleep(random.uniform(MIN_DELAY_SEC, MAX_DELAY_SEC))
-
-        # Lookup RTP/volatilita' per le slot candidate individuate nelle promo,
-        # con un tetto massimo di ricerche per run (per non appesantire troppo
-        # l'esecuzione ne' generare traffico eccessivo verso il motore di ricerca).
+        browser = None
+        page = None
         lookups_done = 0
         for offer in all_offers:
             if offer.get("max_cap") is None:
@@ -1136,6 +1528,9 @@ def main():
             if not candidates:
                 offer["slots"] = []
                 continue
+            if page is None:
+                browser = p.chromium.launch(headless=True)
+                page = new_page(browser)
             slot_infos = []
             for slot_name in candidates:
                 if lookups_done >= RTP_LOOKUP_MAX_SLOTS:
@@ -1157,23 +1552,17 @@ def main():
             if found:
                 offer["note"] += f" | Slot rilevate: {'; '.join(found)}. Rollover a spin minimi."
 
-        browser.close()
+        if browser:
+            close_browser(browser, page)
 
     save_state(state)
 
-    # Unisce con le promozioni gia' presenti nel file (evita di perdere lo
-    # storico se un run trova meno risultati di uno precedente). 'existing' e'
-    # gia' stato caricato a inizio funzione (serviva anche per la cache T&C).
-    #
-    # Le regole di esclusione/valore possono cambiare nel tempo (es. filtri
-    # aggiunti dopo revisione manuale dell'utente): senza un ricontrollo, le
-    # promo gia' salvate in run precedenti resterebbero per sempre nel file
-    # anche se oggi verrebbero scartate (il merge normalmente aggiorna solo le
-    # chiavi che ricompaiono in questo run). Per questo, ad ogni run, le
-    # promo esistenti vengono ri-validate con le regole ATTUALI e quelle che
-    # non le rispettano piu' vengono eliminate — cosi' il file si "ripulisce"
-    # da solo quando i filtri migliorano, senza dover aspettare che il sito
-    # smetta di proporle.
+    # Le regole di esclusione/valore possono cambiare nel tempo: ad ogni run
+    # le promo esistenti vengono ri-validate con le regole ATTUALI e quelle
+    # che non le rispettano piu' vengono eliminate, cosi' il file si
+    # "ripulisce" da solo quando i filtri migliorano.
+    # (Le promo semplicemente non piu' presenti sul sito non vengono tolte
+    # subito: finiscono tra le scadute, vedi merge_with_expiry.)
     def still_valid(o):
         # Il campo 'note' puo' avere in coda avvisi automatici aggiunti dopo
         # il testo originale della promo (es. "| ATTENZIONE: ... tab Strategia
@@ -1198,21 +1587,31 @@ def main():
         if "categoria" not in o:
             o["categoria"] = classify_category(o.get("title", "") + " " + o.get("note", ""))
 
-    merged = {(o["book"], o["title"]): o for o in existing}
-    for o in all_offers:
-        merged[(o["book"], o["title"])] = o
+    # Bookmaker letti con successo in questo run: per loro, una promo salvata
+    # che non compare piu' e' davvero sparita dal sito. Per i bookmaker non
+    # letti (bloccati, in pausa, errore) le promo restano valide finche' non
+    # superano STALE_DAYS giorni senza conferma.
+    ok_books = {e["bookmaker"] for e in log if e["status"] == "ok" and e["trovate"] > 0}
+    merged, n_purged = merge_with_expiry(existing, all_offers, ok_books)
 
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(list(merged.values()), f, ensure_ascii=False, indent=2)
+        json.dump(merged, f, ensure_ascii=False, indent=2)
 
-    publish_to_git()
+    if "--no-publish" in sys.argv:
+        print("\n(pubblicazione online saltata: opzione --no-publish)")
+    else:
+        publish_to_git()
 
-    with_terms = sum(1 for o in merged.values() if o.get("terms"))
+    with_terms = sum(1 for o in merged if o.get("terms"))
     used_budget = MAX_ENRICH_PER_RUN - run_state["enrich_budget"]
+    n_expired = sum(1 for o in merged if o.get("expired"))
+    elapsed = time.monotonic() - started
 
     print("\n" + "=" * 60)
-    print(f"Completato. {len(merged)} promozioni totali salvate in {OUTPUT_PATH.name} "
-          f"({len(all_offers)} trovate in questo run)")
+    print(f"Completato in {int(elapsed // 60)} min {int(elapsed % 60)} s. {len(merged)} promozioni salvate in "
+          f"{OUTPUT_PATH.name}: {len(merged) - n_expired} attive, {n_expired} scadute ("
+          f"{len(all_offers)} trovate in questo run, {n_purged} scadute da oltre "
+          f"{EXPIRED_RETENTION_DAYS} giorni cancellate)")
     print(f"T&C completi: {with_terms}/{len(merged)} promozioni arricchite in totale "
           f"({used_budget}/{MAX_ENRICH_PER_RUN} nuove pagine di dettaglio scaricate in questo run)")
     print("=" * 60)

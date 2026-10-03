@@ -13,3 +13,15 @@ debug_pages/
 # Dati personali dell'app (scommesse, conti, piano) NON vengono mai scritti
 # su file: restano solo in localStorage nel browser. Solo promozioni.json
 # (catalogo promo pubblico, non sensibile) viene pubblicato di proposito.
+
+# Maggiorate: credenziali Betfair e dati personali di gioco restano solo su questo PC.
+betfair_credenziali.json
+betfair_sessione.json
+maggiorate.json
+maggiorate_ev.json
+maggiorate_manuali.json
+maggiorate_report.html
+cache_sportsbook.json
+
+# Copia dei file sovrascritti per errore il 02/10/2026 (tenuta solo come riferimento)
+_backup_versione_02-10/

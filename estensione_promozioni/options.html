@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Lettore Promozioni — impostazioni</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 24px auto; padding: 0 16px; }
+  h2 { font-size: 16px; }
+  label { display: block; margin-top: 14px; font-weight: 600; font-size: 13px; }
+  input, textarea { width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; font-family: inherit; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+  td, th { border-bottom: 1px solid #ddd; padding: 4px; text-align: left; }
+  button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
+  #msg { font-size: 12px; margin-top: 8px; color: #0a7d2c; }
+  .riga-form { display: flex; gap: 6px; margin-top: 10px; }
+  .riga-form input { flex: 1; }
+  .nota { font-size: 11px; color: #888; margin-top: 24px; }
+</style>
+</head>
+<body>
+  <h2>Lettore Promozioni — impostazioni</h2>
+
+  <label>Siti configurati</label>
+  <table id="tabellaSiti">
+    <thead><tr><th>Book</th><th>Dominio</th><th>URL promozioni</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="riga-form">
+    <input id="nuovoBook" placeholder="Nome book (es. PokerStars)">
+    <input id="nuovoDominio" placeholder="dominio (es. pokerstars.it)">
+    <input id="nuovoUrl" placeholder="URL pagina promozioni">
+  </div>
+  <button id="btnAggiungi">Aggiungi sito (Chrome chiederà il permesso)</button>
+
+  <label>Parole chiave per il riconoscimento (una per riga)</label>
+  <textarea id="keywords" rows="10"></textarea>
+  <button id="btnSalvaKeywords">Salva parole chiave</button>
+
+  <div id="msg"></div>
+
+  <p class="nota">
+    Il bridge locale deve essere avviato (Avvia_Server_Estensione_Promozioni.bat) sulla porta 8766
+    mentre usi questa estensione. I siti aggiunti qui restano salvati anche dopo aver chiuso Chrome.
+  </p>
+
+  <script src="options.js"></script>
+</body>
+</html>

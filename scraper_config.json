@@ -1,22 +1,91 @@
 {
-  "_readme": "Aggiungi/rimuovi bookmaker qui. 'url' e' la pagina promozioni. I selettori CSS sono opzionali: se li lasci vuoti o non trovano nulla, lo script usa un'estrazione euristica basata su parole chiave (bonus, free bet, quota maggiorata, cashback, ecc). Se un bookmaker cambia sito e i selettori smettono di funzionare, aggiornali ispezionando la pagina col tasto destro > Ispeziona nel browser. Aggiornato il 2026-08-06 dopo verifica diretta di tutti gli URL/selettori sui siti reali. Quando l'estrazione euristica e' usata (nessun selettore configurato), i risultati passano anche dal filtro di 'monetizzabilita'' qui sotto: 'monetizable_keywords' sono i meccanismi di bonus riconosciuti (deve comparirne almeno uno + un valore quantificabile: importo, %, giri gratis, quota minima), 'exclude_keywords' sono frasi che scartano sempre il blocco (menu, login, errori, giochi a classifica/estrazione senza valore garantito). Aggiungi parole a queste due liste se vedi ancora rumore o offerte valide scartate per errore.",
-  "keywords": ["bonus", "free bet", "scommessa gratis", "cashback", "quota maggiorata", "quota potenziata", "promo", "promozione", "welcome", "benvenuto", "ricarica", "reload", "gratis"],
-  "monetizable_keywords": ["bonus di benvenuto", "welcome bonus", "free bet", "freebet", "bonus cash", "fun bonus", "bonus deposito", "primo deposito", "cashback", "rimborso", "giri gratis", "free spin", "bonus sport", "bonus scommesse", "bonus slot", "deposito minimo", "scommessa minima", "quota minima", "moltiplicatore"],
-  "exclude_keywords": ["recupera password", "hai dimenticato", "inserisci le tue credenziali", "username", "accedi con passkey", "non hai un account", "non hai ancora un conto", "errore 404", "si è verificato un errore", "ci scusiamo per il disagio", "preferenze di contatto", "comunicazioni di marketing", "cookie policy", "faq aiuto", "orari di gioco", "scala la classifica", "classifica generale", "gioco gratuito giornaliero", "svelamenti al giorno", "punti convertibili", "club riservato", "regolamento completo", "assistenza clienti", "porta un amico", "invita un amico", "montepremi", "bonus progressivo", "quota maggiorata", "quota potenziata", "classifica", "torneo", "leaderboard"],
+  "_readme": "Aggiungi/rimuovi bookmaker qui. 'url' e' la pagina promozioni. I selettori CSS sono opzionali: se li lasci vuoti o non trovano nulla, lo script usa un'estrazione euristica basata su parole chiave (bonus, free bet, quota maggiorata, cashback, ecc). Se un bookmaker cambia sito e i selettori smettono di funzionare, aggiornali ispezionando la pagina col tasto destro > Ispeziona nel browser. Aggiornato il 2026-08-06 dopo verifica diretta di tutti gli URL/selettori sui siti reali. Quando l'estrazione euristica e' usata (nessun selettore configurato), i risultati passano anche dal filtro di 'monetizzabilita'' qui sotto: 'monetizable_keywords' sono i meccanismi di bonus riconosciuti (deve comparirne almeno uno + un valore quantificabile: importo, %, giri gratis, quota minima), 'exclude_keywords' sono frasi che scartano sempre il blocco (menu, login, errori, giochi a classifica/estrazione senza valore garantito). Aggiungi parole a queste due liste se vedi ancora rumore o offerte valide scartate per errore. 'estensione': true segnala un book che rifiuta il browser automatico (anti-bot): scraper_promozioni.py lo salta (niente tentativi sprecati ne' cooldown) e va letto con l'estensione Chrome 'Lettore Promozioni' (vedi LEGGIMI_estensione_promozioni.md). Facoltativo per singolo book: 'enrich_terms': false disattiva la lettura della pagina di dettaglio (T&C).",
+  "keywords": [
+    "bonus",
+    "free bet",
+    "scommessa gratis",
+    "cashback",
+    "quota maggiorata",
+    "quota potenziata",
+    "promo",
+    "promozione",
+    "welcome",
+    "benvenuto",
+    "ricarica",
+    "reload",
+    "gratis"
+  ],
+  "monetizable_keywords": [
+    "bonus di benvenuto",
+    "welcome bonus",
+    "free bet",
+    "freebet",
+    "bonus cash",
+    "fun bonus",
+    "bonus deposito",
+    "primo deposito",
+    "cashback",
+    "rimborso",
+    "giri gratis",
+    "free spin",
+    "bonus sport",
+    "bonus scommesse",
+    "bonus slot",
+    "deposito minimo",
+    "scommessa minima",
+    "quota minima",
+    "moltiplicatore"
+  ],
+  "exclude_keywords": [
+    "recupera password",
+    "hai dimenticato",
+    "inserisci le tue credenziali",
+    "username",
+    "accedi con passkey",
+    "non hai un account",
+    "non hai ancora un conto",
+    "errore 404",
+    "si è verificato un errore",
+    "ci scusiamo per il disagio",
+    "preferenze di contatto",
+    "comunicazioni di marketing",
+    "cookie policy",
+    "faq aiuto",
+    "orari di gioco",
+    "scala la classifica",
+    "classifica generale",
+    "gioco gratuito giornaliero",
+    "svelamenti al giorno",
+    "punti convertibili",
+    "club riservato",
+    "regolamento completo",
+    "assistenza clienti",
+    "porta un amico",
+    "invita un amico",
+    "montepremi",
+    "bonus progressivo",
+    "quota maggiorata",
+    "quota potenziata",
+    "classifica",
+    "torneo",
+    "leaderboard"
+  ],
   "bookmakers": [
     {
       "name": "Sisal",
       "url": "https://www.sisal.it/bonus/bonus-benvenuto",
       "card_selector": ".cardBonusBenvenuto__button",
       "title_selector": ".cardBonusBenvenuto__subtitle",
-      "note": "AAMS/ADM. URL vecchio (scommesse/promozioni) dava 404. Questa pagina copre solo i bonus di benvenuto per categoria: le promo continuative sono nell'area riservata dietro login, non accessibili allo scraper."
+      "note": "bloccato dall'anti-bot: lo scraper lo salta, si legge con l'estensione Chrome 'Lettore Promozioni'. AAMS/ADM. URL vecchio (scommesse/promozioni) dava 404. Questa pagina copre solo i bonus di benvenuto per categoria: le promo continuative sono nell'area riservata dietro login, non accessibili allo scraper.",
+      "estensione": true
     },
     {
       "name": "Snai",
       "url": "https://www.snai.it/bonus/bonus-benvenuto",
       "card_selector": ".cardBonusBenvenuto__button",
       "title_selector": ".cardBonusBenvenuto__subtitle",
-      "note": "Stesso gruppo/piattaforma di Sisal (Snaitech), stessa struttura pagina. URL vecchio (/promozioni) dava 404."
+      "note": "bloccato dall'anti-bot: lo scraper lo salta, si legge con l'estensione Chrome 'Lettore Promozioni'. Stesso gruppo/piattaforma di Sisal (Snaitech), stessa struttura pagina. URL vecchio (/promozioni) dava 404.",
+      "estensione": true
     },
     {
       "name": "Eurobet",
@@ -37,7 +106,8 @@
       "url": "https://www.goldbet.it/bonus/tutti",
       "card_selector": "article.promo--item",
       "title_selector": ".promo--title",
-      "note": "URL vecchio (/promozioni) dava 404. Corretto: /bonus/tutti."
+      "note": "bloccato dall'anti-bot: lo scraper lo salta, si legge con l'estensione Chrome 'Lettore Promozioni'. URL vecchio (/promozioni) dava 404. Corretto: /bonus/tutti.",
+      "estensione": true
     },
     {
       "name": "Planetwin365",
@@ -47,11 +117,20 @@
       "note": "Stessa piattaforma di Goldbet/Lottomatica, stessa struttura. URL vecchio (/it/promotions) redirigeva alla home."
     },
     {
-      "name": "StarCasino / StarVegas",
+      "name": "StarVegas",
       "url": "https://www.starvegas.it/",
       "card_selector": "",
       "title_selector": "",
-      "note": "Il sito NON ha una pagina indice 'tutte le promozioni' (l'URL /promozioni va in redirect loop): ogni offerta ha una propria pagina dedicata (es. /promozioni/sport, /promozioni/bonus-benvenuto, /promozioni/slot-casino). Config puntata sulla homepage con estrazione euristica come miglior compromesso; affidabilita' inferiore rispetto agli altri bookmaker, verifica manuale consigliata."
+      "note": "bloccato dall'anti-bot: lo scraper lo salta, si legge con l'estensione Chrome 'Lettore Promozioni'. Il sito NON ha una pagina indice 'tutte le promozioni' (l'URL /promozioni va in redirect loop): ogni offerta ha una propria pagina dedicata (es. /promozioni/sport, /promozioni/bonus-benvenuto, /promozioni/slot-casino). Config puntata sulla homepage con estrazione euristica come miglior compromesso; affidabilita' inferiore rispetto agli altri bookmaker, verifica manuale consigliata.",
+      "estensione": true
+    },
+    {
+      "name": "StarCasino",
+      "url": "https://www.starcasino.it/promozioni",
+      "card_selector": "",
+      "title_selector": "",
+      "estensione": true,
+      "note": "bloccato dall'anti-bot: lo scraper lo salta, si legge con l'estensione Chrome 'Lettore Promozioni'. Dominio separato da StarVegas; URL della pagina promozioni da verificare al primo uso con l'estensione."
     },
     {
       "name": "Betflag",
@@ -110,11 +189,12 @@
       "note": "Aggiunto 2026-08-07, verificato dal vivo. 11 promo trovate. Selettore basato su classi Material-UI: se in futuro smette di funzionare, la libreria UI potrebbe essere cambiata, va rifatto ispezionando la pagina."
     },
     {
-      "name": "AdmiralBet",
+      "name": "Admiralbet",
       "url": "https://www.admiralbet.it/promozioni",
       "card_selector": ".big-card-promotion",
       "title_selector": ".promo-card-title",
-      "note": "Aggiunto 2026-08-07, verificato dal vivo. Solo 5 promo in evidenza su questa pagina (altre sono su sottopagine dedicate /promozioni/nome-offerta, non aggregate)."
+      "note": "bloccato dall'anti-bot: lo scraper lo salta, si legge con l'estensione Chrome 'Lettore Promozioni'. Aggiunto 2026-08-07, verificato dal vivo. Solo 5 promo in evidenza su questa pagina (altre sono su sottopagine dedicate /promozioni/nome-offerta, non aggregate).",
+      "estensione": true
     },
     {
       "name": "Stake",
@@ -229,7 +309,8 @@
       "detail_title_selector": ".promozione__top__title",
       "detail_content_selector": ".promozione__content",
       "max_details": 15,
-      "note": "Aggiunto 2026-08-07. Le card sulla pagina indice sono banner-immagine senza testo estraibile (nessuna API JSON dietro al carosello). Soluzione: modalita' 'detail_pages' a due passaggi implementata in scraper_promozioni.py — la pagina indice serve solo a raccogliere i link (23 trovati), poi ogni pagina di dettaglio viene visitata singolarmente: li' il testo e' reale e ricco (titolo + descrizione + condizioni con importi/quote), verificato dal vivo su /scommesse/promozione/bonus-benvenuto-sport-freebet. Max 15 dettagli per run per contenere il numero di richieste."
+      "note": "bloccato dall'anti-bot: lo scraper lo salta, si legge con l'estensione Chrome 'Lettore Promozioni'. Aggiunto 2026-08-07. Le card sulla pagina indice sono banner-immagine senza testo estraibile (nessuna API JSON dietro al carosello). Soluzione: modalita' 'detail_pages' a due passaggi implementata in scraper_promozioni.py — la pagina indice serve solo a raccogliere i link (23 trovati), poi ogni pagina di dettaglio viene visitata singolarmente: li' il testo e' reale e ricco (titolo + descrizione + condizioni con importi/quote), verificato dal vivo su /scommesse/promozione/bonus-benvenuto-sport-freebet. Max 15 dettagli per run per contenere il numero di richieste.",
+      "estensione": true
     },
     {
       "name": "Betwin360",
@@ -239,7 +320,8 @@
       "detail_title_selector": ".promozione__top__title",
       "detail_content_selector": ".promozione__content",
       "max_details": 15,
-      "note": "Aggiunto 2026-08-07. Clone della stessa piattaforma di Eplay24 (identica struttura /promozione/, stesse classi CSS di dettaglio), stesso problema banner-immagine sull'indice risolto con la modalita' 'detail_pages'. Verificato dal vivo su /games/promozione/playson (nota: quella specifica promo contiene 'montepremi', quindi viene scartata dal filtro esclusioni — corretto, e' un torneo a bacino condiviso non un valore garantito)."
+      "note": "bloccato dall'anti-bot: lo scraper lo salta, si legge con l'estensione Chrome 'Lettore Promozioni'. Aggiunto 2026-08-07. Clone della stessa piattaforma di Eplay24 (identica struttura /promozione/, stesse classi CSS di dettaglio), stesso problema banner-immagine sull'indice risolto con la modalita' 'detail_pages'. Verificato dal vivo su /games/promozione/playson (nota: quella specifica promo contiene 'montepremi', quindi viene scartata dal filtro esclusioni — corretto, e' un torneo a bacino condiviso non un valore garantito).",
+      "estensione": true
     },
     {
       "name": "Sportium",
@@ -291,7 +373,8 @@
       "url": "https://www.quigioco.it/promo",
       "card_selector": ".promoCard",
       "title_selector": ".promoCard__title",
-      "note": "Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di Marathonbet/Betsson/Codere/Vincitu (13 promo trovate)."
+      "note": "bloccato dall'anti-bot: lo scraper lo salta, si legge con l'estensione Chrome 'Lettore Promozioni'. Aggiunto 2026-08-07, verificato dal vivo. Stessa piattaforma di Marathonbet/Betsson/Codere/Vincitu (13 promo trovate).",
+      "estensione": true
     },
     {
       "name": "PokerStars",

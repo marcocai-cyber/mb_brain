@@ -172,6 +172,8 @@
     background:rgba(255,255,255,.08); border-radius:20px; padding:1px 8px; font-size:11px;
   }
   .folder-tab.active .count{background:rgba(61,220,151,.2);}
+  .offer-card.expired{opacity:.6;}
+  .offer-card.expired:hover{opacity:.85;}
 
   /* ---- Matched Bet (coppia punta-bookmaker + lay-exchange collegate) ---- */
   .mb-actions{display:flex; gap:6px; flex-wrap:wrap;}
@@ -817,6 +819,10 @@
       <h2>Offerte attive</h2>
       <p style="color:var(--muted); font-size:12.5px; margin:-6px 0 14px;">Le offerte arrivano automaticamente dallo scraper (tab qui sopra "Importa promozioni"). Sono divise in cartelle per tipo: clicca su una cartella per filtrare, poi su una card per vedere la descrizione completa, i termini e condizioni e le altre informazioni.</p>
       <div class="folder-tabs" id="offerFolderTabs"></div>
+      <div id="expiredFolderBar" style="display:none; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin:-4px 0 14px; font-size:12.5px; color:var(--muted);">
+        <span>Promozioni non più disponibili. Vengono cancellate da sole dopo 14 giorni (tranne quelle "In corso").</span>
+        <button class="danger-link" style="border:1px solid var(--border); border-radius:8px; padding:6px 12px;" onclick="clearExpiredOffers()">Svuota Scaduti</button>
+      </div>
       <div class="offer-grid" id="offersGrid"></div>
       <div class="empty" id="offersEmpty" style="display:none;">Nessuna offerta salvata ancora. Vai al tab "🔄 Aggiorna promozioni" per importarle dallo scraper.</div>
     </div>
@@ -1114,7 +1120,7 @@
 <footer>
   <div>
     🔞 Gioca responsabilmente — questo strumento non incentiva il gioco d'azzardo, serve solo a estrarre valore da bonus e promozioni con rischio minimo. Dati salvati solo in questo browser (localStorage).
-    <span id="footerVersion" style="opacity:.7;" title="Se dopo un aggiornamento questa data non cambia, il browser sta mostrando una versione in cache: prova a ricaricare tenendo premuto il pulsante di refresh, o cancella la cache del sito.">· Versione app: 2026-09-09</span>
+    <span id="footerVersion" style="opacity:.7;" title="Se dopo un aggiornamento questa data non cambia, il browser sta mostrando una versione in cache: prova a ricaricare tenendo premuto il pulsante di refresh, o cancella la cache del sito.">· Versione app: 2026-09-30</span>
   </div>
   <div class="footer-links">
     <span onclick="document.querySelector('.tab-btn[data-tab=&quot;backup&quot;]').click()">💾 Backup</span>
@@ -2227,7 +2233,12 @@ function mergeImportedOffers(data){
       url: item.url || '',
       terms: item.terms || '',
       categoria: item.categoria || '',
-      slots: Array.isArray(item.slots) ? item.slots : []
+      slots: Array.isArray(item.slots) ? item.slots : [],
+      expired: !!item.expired,
+      expired_on: item.expired_on || '',
+      expired_reason: item.expired_reason || '',
+      first_seen: item.first_seen || '',
+      last_seen: item.last_seen || ''
     };
     if(existing){
       // I T&C, una volta salvati, non vengono mai sovrascritti con una versione
@@ -2242,9 +2253,70 @@ function mergeImportedOffers(data){
       added++;
     }
   });
+  // promozioni.json contiene tutte le promo che lo scraper conosce (attive e
+  // scadute di recente): un'offerta salvata qui che non c'è più nel file è
+  // stata tolta dal bookmaker da tempo, quindi finisce tra le Scadute.
+  const keys = new Set(data.filter(i => i && i.book && i.title).map(i => i.book + '||' + i.title));
+  if(keys.size){
+    offers.forEach(o => {
+      if(!keys.has(o.book + '||' + o.title)) markOfferExpired(o, 'Non più presente nelle promozioni aggiornate');
+    });
+  }
+  purgeExpiredOffers();
   save(STORE_KEYS.offers, offers);
   renderOffers();
+  renderDashboard();  // il conteggio "Offerte attive" cambia con le scadute
   return {added, updated};
+}
+
+/* ---- Scadenza offerte ----
+   Un'offerta è scaduta se lo scraper l'ha marcata così (non più presente sul
+   sito del bookmaker, o data di scadenza superata), se la sua data di
+   scadenza è passata, o se l'utente l'ha segnata a mano come "Scaduta".
+   Le scadute stanno nella cartella "Scaduti" e vengono cancellate da sole
+   dopo EXPIRED_RETENTION_DAYS giorni (tranne quelle "In corso"). */
+const EXPIRED_RETENTION_DAYS = 14;
+function todayISO(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function isOfferExpired(o){
+  return !!o.expired || o.status === 'Scaduta' || !!(o.deadline && o.deadline < todayISO());
+}
+function offerExpiredOn(o){
+  if(o.expired_on) return o.expired_on;
+  if(o.deadline && o.deadline < todayISO()) return o.deadline;
+  return '';
+}
+function offerExpiredReason(o){
+  if(o.expired && o.expired_reason) return o.expired_reason;
+  if(o.deadline && o.deadline < todayISO()) return `Scadenza superata (${o.deadline})`;
+  if(o.status === 'Scaduta') return 'Segnata come scaduta a mano';
+  return '';
+}
+function markOfferExpired(o, reason){
+  if(o.expired) return;
+  o.expired = true;
+  o.expired_on = todayISO();
+  o.expired_reason = reason;
+}
+function purgeExpiredOffers(){
+  const limit = new Date(Date.now() - EXPIRED_RETENTION_DAYS * 86400000).toISOString().slice(0,10);
+  const before = offers.length;
+  offers = offers.filter(o => {
+    if(!isOfferExpired(o) || o.status === 'In corso') return true;
+    const since = offerExpiredOn(o);
+    return !since || since >= limit;
+  });
+  return before - offers.length;
+}
+function clearExpiredOffers(){
+  const n = offers.filter(o => isOfferExpired(o)).length;
+  if(!n) return;
+  if(!confirm(`Eliminare definitivamente ${n} offerte scadute?`)) return;
+  offers = offers.filter(o => !isOfferExpired(o));
+  save(STORE_KEYS.offers, offers);
+  renderOffers();
 }
 
 function importOffersFile(){
@@ -2534,7 +2606,15 @@ function offerCategory(o){
   return 'Ricorrenti';
 }
 
-const OFFER_FOLDERS = ['Tutte', 'Benvenuto', 'Rimborso', 'Ricorrenti'];
+const OFFER_FOLDERS = ['Tutte', 'Benvenuto', 'Rimborso', 'Ricorrenti', 'Scaduti'];
+
+// Offerte visibili in una cartella: "Scaduti" contiene solo le scadute, tutte
+// le altre cartelle (inclusa "Tutte") solo quelle ancora attive.
+function offersInFolder(folder){
+  if(folder === 'Scaduti') return offers.filter(o => isOfferExpired(o));
+  const active = offers.filter(o => !isOfferExpired(o));
+  return folder === 'Tutte' ? active : active.filter(o => offerCategory(o) === folder);
+}
 let activeOfferFolder = 'Tutte';
 
 function selectOfferFolder(folder){
@@ -2546,9 +2626,9 @@ function renderFolderTabs(){
   const bar = document.getElementById('offerFolderTabs');
   if(!bar) return;
   bar.innerHTML = OFFER_FOLDERS.map(folder => {
-    const count = folder === 'Tutte' ? offers.length : offers.filter(o => offerCategory(o) === folder).length;
+    const count = offersInFolder(folder).length;
     const active = folder === activeOfferFolder ? ' active' : '';
-    const icon = {'Tutte':'📁','Benvenuto':'🎉','Rimborso':'💸','Ricorrenti':'🔁'}[folder] || '📁';
+    const icon = {'Tutte':'📁','Benvenuto':'🎉','Rimborso':'💸','Ricorrenti':'🔁','Scaduti':'⌛'}[folder] || '📁';
     return `<div class="folder-tab${active}" onclick="selectOfferFolder('${folder}')">${icon} ${folder} <span class="count">${count}</span></div>`;
   }).join('');
 }
@@ -2557,16 +2637,23 @@ function renderOffers(){
   renderFolderTabs();
   const grid = document.getElementById('offersGrid');
   grid.innerHTML = '';
-  const visible = activeOfferFolder === 'Tutte' ? offers : offers.filter(o => offerCategory(o) === activeOfferFolder);
+  const inExpired = activeOfferFolder === 'Scaduti';
+  const visible = offersInFolder(activeOfferFolder);
   const emptyEl = document.getElementById('offersEmpty');
   emptyEl.style.display = visible.length ? 'none' : 'block';
   emptyEl.textContent = offers.length
     ? `Nessuna offerta nella cartella "${activeOfferFolder}".`
     : 'Nessuna offerta salvata ancora. Vai al tab "🔄 Aggiorna promozioni" per importarle dallo scraper.';
+  const expiredBar = document.getElementById('expiredFolderBar');
+  if(expiredBar) expiredBar.style.display = inExpired && visible.length ? 'flex' : 'none';
 
-  [...visible].sort((a,b)=> (a.deadline||'9999').localeCompare(b.deadline||'9999')).forEach(o=>{
+  const sorted = inExpired
+    ? [...visible].sort((a,b) => offerExpiredOn(b).localeCompare(offerExpiredOn(a)))
+    : [...visible].sort((a,b)=> (a.deadline||'9999').localeCompare(b.deadline||'9999'));
+  sorted.forEach(o=>{
+    const expired = isOfferExpired(o);
     const card = document.createElement('div');
-    card.className = 'offer-card';
+    card.className = 'offer-card' + (expired ? ' expired' : '');
     card.onclick = () => openOfferModal(o.id);
     const img = o.image
       ? `<img class="offer-card-img" src="${o.image}" alt="" onerror="this.outerHTML='<div class=&quot;offer-card-img-placeholder&quot;>🎁</div>'">`
@@ -2579,10 +2666,14 @@ function renderOffers(){
         <div class="offer-card-desc">${escapeHtml(offerShortDesc(o))}</div>
         <div class="offer-card-meta">
           <span class="offer-card-value">€${fmt(o.value)}</span>
-          <span onclick="event.stopPropagation(); cycleStatus(${o.id})">${statusPill(o.status)}</span>
+          ${expired
+            ? `<span class="pill danger" title="${escapeHtml(offerExpiredReason(o))}">Scaduta</span>`
+            : `<span onclick="event.stopPropagation(); cycleStatus(${o.id})">${statusPill(o.status)}</span>`}
         </div>
         <div class="offer-card-actions">
-          <span style="font-size:11px; color:var(--muted)">${o.deadline ? 'Scade: ' + o.deadline : 'Senza scadenza'}</span>
+          <span style="font-size:11px; color:var(--muted)">${expired
+            ? escapeHtml(offerExpiredReason(o))
+            : (o.deadline ? 'Scade: ' + o.deadline : 'Senza scadenza')}</span>
           <button class="danger-link" onclick="event.stopPropagation(); deleteOffer(${o.id})">Elimina</button>
         </div>
       </div>
@@ -2606,6 +2697,9 @@ function openOfferModal(id){
   const noteHtml = o.note
     ? `<div class="modal-section"><h4>Nota</h4><div class="modal-terms">${escapeHtml(o.note)}</div></div>`
     : '';
+  const expiredHtml = isOfferExpired(o)
+    ? `<div class="modal-section"><div class="modal-terms" style="color:var(--danger)">⌛ Offerta scaduta${offerExpiredOn(o) ? ' il ' + offerExpiredOn(o) : ''}: ${escapeHtml(offerExpiredReason(o))}</div></div>`
+    : '';
 
   document.getElementById('offerModalBox').innerHTML = `
     <button class="modal-close" onclick="closeOfferModal()">✕</button>
@@ -2619,6 +2713,7 @@ function openOfferModal(id){
         <div class="modal-fact"><div class="lbl">Scadenza</div><div class="val">${o.deadline || '—'}</div></div>
         <div class="modal-fact"><div class="lbl">Wagering</div><div class="val">${escapeHtml(o.wager) || '—'}</div></div>
       </div>
+      ${expiredHtml}
       ${termsHtml}
       ${noteHtml}
       <div class="modal-actions">
@@ -2638,6 +2733,7 @@ document.addEventListener('keydown', (e) => {
   if(e.key === 'Escape') closeOfferModal();
 });
 
+if(purgeExpiredOffers()) save(STORE_KEYS.offers, offers);
 renderOffers();
 
 /* ===================== ACCOUNT ===================== */
@@ -2890,11 +2986,7 @@ function generateSchedule(){
 
   const today = new Date().toISOString().slice(0,10);
 
-  const actionable = offers.filter(o => {
-    if(o.status === 'Completata' || o.status === 'Scaduta') return false;
-    if(o.deadline && o.deadline < today) return false;
-    return true;
-  });
+  const actionable = offers.filter(o => o.status !== 'Completata' && !isOfferExpired(o));
 
   const withType = actionable.map(o => Object.assign({}, o, {
     _type: (Array.isArray(o.slots) && o.slots.length > 0) ? 'slot' : 'matched'
@@ -3104,7 +3196,7 @@ function renderDashboard(){
 
   const totalProfit = bets.reduce((s,b)=>s+b.profit,0);
   const today = new Date().toISOString().slice(0,10);
-  const activeOffers = offers.filter(o => o.status !== 'Completata' && o.status !== 'Scaduta' && (!o.deadline || o.deadline >= today));
+  const activeOffers = offers.filter(o => o.status !== 'Completata' && !isOfferExpired(o));
   const openMatched = matchedBets.filter(m => m.status === 'IN CORSO').length;
   const openMulti = multiOddsSaved.filter(m => !moIsDead(m) && moFirstPendingIndex(m) !== -1).length;
 

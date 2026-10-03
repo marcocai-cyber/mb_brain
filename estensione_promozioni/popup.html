@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Lettore Promozioni</title>
+<style>
+  body { font-family: system-ui, sans-serif; width: 300px; padding: 12px; }
+  h1 { font-size: 14px; margin: 0 0 10px; }
+  button {
+    width: 100%; padding: 8px; margin-bottom: 8px; cursor: pointer;
+    border: 1px solid #ccc; border-radius: 6px; background: #f6f6f6; font-size: 13px;
+  }
+  button:hover { background: #eee; }
+  #stato { font-size: 12px; white-space: pre-wrap; margin-top: 8px; max-height: 220px; overflow-y: auto; }
+  a { font-size: 11px; display: inline-block; margin-top: 6px; }
+</style>
+</head>
+<body>
+  <h1>Lettore Promozioni</h1>
+  <button id="btnPagina">Leggi pagina corrente</button>
+  <button id="btnTutte">Apri e leggi tutti i siti bloccati</button>
+  <div id="stato"></div>
+  <a href="#" id="linkOpzioni">Gestisci siti / parole chiave</a>
+  <script src="popup.js"></script>
+</body>
+</html>

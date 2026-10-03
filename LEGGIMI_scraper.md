@@ -470,6 +470,48 @@ Note su altri operatori valutati e non inclusi:
 
 Rimangono fuori dall'elenco anche gli operatori bingo-focused (es. Tombola.it).
 
+## Aggiornamento del 03/10/2026: velocità, scadute, riassunto per punti, estensione Chrome
+
+Questa versione dello script è la stessa del 30/09 (ricostruita il 03/10, dopo che il 02/10 era
+stata sovrascritta per errore da una copia più vecchia), con in più le modifiche richieste il 02/10.
+
+**Più veloce.** I bookmaker vengono letti in parallelo (4 alla volta, `PARALLEL_WORKERS`) e immagini,
+video e font non vengono scaricati. Le attese fisse sono state ridotte: se il config indica il
+`card_selector`, lo script aspetta solo che le card compaiano.
+
+**Blocchi anti-bot riconosciuti.** Se un sito risponde con una pagina "Access Denied" (Akamai) o con
+`ERR_HTTP2_PROTOCOL_ERROR`, il log lo segnala come "bloccato dal sito" e il bookmaker va in pausa per
+24 ore (invece delle 6 ore degli errori normali), senza riprovare a ogni run.
+
+**Book letti con l'estensione Chrome.** Sisal, Snai, Goldbet, StarVegas, StarCasino, Admiralbet,
+Betwin360, Eplay24 e Quigioco hanno `"estensione": true` in `scraper_config.json`: lo script li salta e
+nel riepilogo finale compaiono come "via estensione Chrome". Si leggono con l'estensione "Lettore
+Promozioni" (vedi `LEGGIMI_estensione_promozioni.md`), che scrive nello stesso `promozioni.json`.
+
+**Note come riassunto per punti.** La nota di ogni promo è ora un elenco per punti chiave, costruito
+con le regole di `riassunto_promo.py` (solo regex, nessuna API) su card + pagina di dettaglio:
+Attivazione, Qualificante, Requisito giocata, Bonus, Dove spenderlo, Rollover / cap, Real bonus,
+Scadenze. Un punto compare solo se è stato trovato nel testo; se non se ne trova nessuno resta la
+descrizione breve della card. Lo stesso modulo compila anche wagering (es. `35x`), e — se mancano —
+valore del bonus, max cap e slot. `riassunto_promo.py` deve restare nella stessa cartella dello script.
+
+**Importo letto dalla pagina di dettaglio.** Se la card non riporta l'importo, lo script lo cerca nei
+T&C (il primo importo legato a "bonus", "free bet", "cashback"...). Le pagine dei tornei/classifiche
+(montepremi, "in palio") vengono scartate.
+
+**Promo scadute.**
+- Una promo già scaduta quando viene letta (data di fine passata, oppure "promozione terminata" nel
+  testo) viene scartata e non entra nel file.
+- Una promo salvata che non compare più sul sito del bookmaker (letto correttamente in questo run), o
+  la cui data di fine è passata, viene segnata come scaduta: l'app la mostra nella cartella
+  "Scaduti". Se il sito del bookmaker non è leggibile (bloccato, in pausa), la promo resta attiva fino
+  a 7 giorni senza conferma (`STALE_DAYS`).
+- Le scadute vengono cancellate dal file dopo 14 giorni (`EXPIRED_RETENTION_DAYS`). Per toglierle
+  subito, metti `EXPIRED_RETENTION_DAYS = 0` in cima a `scraper_promozioni.py`.
+
+**Prova senza pubblicare.** `python scraper_promozioni.py --no-publish` aggiorna `promozioni.json` ma
+non lo pubblica su GitHub.
+
 ## Nota legale — leggila prima di usarlo
 
 Molti bookmaker vietano nei propri **Termini di Servizio** l'uso di strumenti automatizzati
