@@ -70,7 +70,11 @@
     "torneo",
     "leaderboard",
     "ultimo accesso",
-    "bonus multipla progressivo"
+    "bonus multipla progressivo",
+    "numero conto gioco",
+    "saldo:",
+    "mail_outline",
+    "expand_more"
   ],
   "bookmakers": [
     {

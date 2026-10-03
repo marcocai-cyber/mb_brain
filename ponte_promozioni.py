@@ -32,6 +32,7 @@ from riassunto_promo import riassumi, e_scaduta  # noqa: E402
 from scraper_promozioni import (  # noqa: E402
     BONUS_PROGRESSIVO_RE, EXCLUDE_PATTERNS_DEFAULT, TERMS_EXCLUDE_KEYWORDS, TERMS_VALUE_CHARS,
     classify_with_context, guess_deadline, load_config, merge_with_expiry, is_sport_or_slot_welcome,
+    motivo_esclusione,
 )
 from urllib.parse import urlparse  # noqa: E402
 OUTPUT_PATH = HERE / "promozioni.json"
@@ -115,6 +116,9 @@ class Handler(BaseHTTPRequestHandler):
                 continue
             categoria = classify_with_context(card, it.get("url", ""), testo_dett)
             path_words = urlparse(it.get("url", "")).path.replace("-", " ")
+            if motivo_esclusione(it["title"], testo_card[:220], it.get("image", ""), testo_dett, categoria):
+                scartate += 1  # torneo/gara/bingo/virtual/compleanno/amico
+                continue
             if categoria == "Benvenuto" and not is_sport_or_slot_welcome(card + " " + path_words):
                 scartate += 1  # come lo scraper: tra i benvenuto solo sport e slot
                 continue

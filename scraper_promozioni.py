@@ -861,6 +861,43 @@ def classify_with_context(card_text, url="", terms=""):
 BONUS_PROGRESSIVO_RE = re.compile(r"bonus\s+(?:multipl[ae]\s+)?progressiv", re.IGNORECASE)
 
 
+# Promo non sfruttabili (richiesta dell'utente, 2026-10-03): tornei, gare e
+# classifiche (podio, palio, race), montepremi, bingo, virtual, buon
+# compleanno, cartelle, "porta/invita un amico". Si cercano come parole
+# intere in titolo, descrizione della card e nome del file dell'immagine.
+# Il testo DENTRO l'immagine non e' leggibile dallo script.
+# - "bingo" e "virtual" nella descrizione di un bonus di BENVENUTO non lo
+#   scartano: molti benvenuto multi-prodotto citano il bingo ("...+ 5€ bingo")
+#   o hanno il menu del sito nella card; per i benvenuto decide gia' la regola
+#   "solo sport e slot". Nel TITOLO scartano sempre (es. "Bonus Benvenuto Bingo").
+# - Nei T&C si cercano solo le frasi che non compaiono nei menu dei siti
+#   (dove "Bingo", "Virtual" e simili ci sono quasi sempre).
+PROMO_ESCLUSE_RE = re.compile(
+    r"\b(?:podio|palio|races?|virtual[ei]?|montepremi|bingo|buon\s+compleanno|cartell[ae]"
+    r"|amic[oi]\s+registrat[oi]|invita\s+un\s+amico|porta\s+un\s+amico)\b",
+    re.IGNORECASE)
+PROMO_ESCLUSE_VERTICALI = {"bingo", "virtual", "virtuale", "virtuali"}
+PROMO_ESCLUSE_TERMS_RE = re.compile(
+    r"\b(?:podio|palio|montepremi|buon\s+compleanno|cartell[ae]"
+    r"|amic[oi]\s+registrat[oi]|invita\s+un\s+amico|porta\s+un\s+amico)\b",
+    re.IGNORECASE)
+
+
+def motivo_esclusione(title, card_text="", image="", terms="", categoria=""):
+    """Ritorna la parola che fa scartare la promo, o "" se la promo e' valida."""
+    m = PROMO_ESCLUSE_RE.search(title or "")
+    if m:
+        return m.group(0).lower()
+    img_words = re.sub(r"[_\-./]+", " ", urlparse(image or "").path)
+    for m in PROMO_ESCLUSE_RE.finditer((card_text or "") + " " + img_words):
+        parola = m.group(0).lower()
+        if categoria == "Benvenuto" and parola in PROMO_ESCLUSE_VERTICALI:
+            continue
+        return parola
+    m = PROMO_ESCLUSE_TERMS_RE.search(terms or "")
+    return m.group(0).lower() if m else ""
+
+
 # Su richiesta esplicita dell'utente (2026-08-16): tra i bonus di benvenuto,
 # tenere SOLO quelli sport o slot, scartando le altre verticali (casino'
 # generico, poker, bingo, carte, lotterie, virtuali, ippica...) — troppo
@@ -909,6 +946,7 @@ EXCLUDE_PATTERNS_DEFAULT = [
     "quota maggiorata", "quota potenziata", "classifica", "torneo", "leaderboard",
     # area personale (es. "Benvenuto, Nome Cognome - Ultimo accesso")
     "ultimo accesso", "bonus multipla progressivo",
+    "numero conto gioco", "saldo:", "mail_outline", "expand_more",
 ]
 
 # Meccanismi di bonus riconosciuti come potenzialmente calcolabili (matched
@@ -1115,6 +1153,9 @@ def scrape_detail_pages(page, bm, monetizable_keywords, exclude_keywords):
         # visitata (nessuna richiesta aggiuntiva): decompose() e' distruttivo,
         # quindi va chiamato per ultimo su questo soup.
         terms = extract_terms_from_soup(dsoup)
+        if motivo_esclusione(it["title"], it["snippet"], image, terms, categoria):
+            n_zero_value += 1
+            continue
         offer = {
             "book": name,
             "title": it["title"],
@@ -1283,6 +1324,7 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
     n_scadute = 0
     n_progressivo = 0
     n_non_sport_slot = 0
+    esclusioni = {}
     for r in candidates:
         snippet = r.pop("_snippet")
         card_text = r.pop("_card_text")
@@ -1304,6 +1346,10 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
         if r["categoria"] == "Benvenuto" and not is_sport_or_slot_welcome(
                 card_full + " " + urlparse(r.get("url", "")).path.replace("-", " ")):
             n_non_sport_slot += 1
+            continue
+        motivo = motivo_esclusione(r["title"], card_text, r.get("image", ""), terms, r["categoria"])
+        if motivo:
+            esclusioni[motivo] = esclusioni.get(motivo, 0) + 1
             continue
         if value <= 0 and terms:
             value = guess_bonus_value(terms[:TERMS_VALUE_CHARS])
@@ -1344,6 +1390,9 @@ def scrape_bookmaker(page, bm, keywords, monetizable_keywords, exclude_keywords,
         print(f"   -{n_progressivo} scartate: bonus progressivo (non sfruttabile)")
     if n_non_sport_slot:
         print(f"   -{n_non_sport_slot} scartate dopo i T&C: bonus di benvenuto non sport/slot")
+    if esclusioni:
+        dettaglio = ", ".join(f"{k} {v}" for k, v in sorted(esclusioni.items()))
+        print(f"   -{sum(esclusioni.values())} scartate: torneo/gara/bingo/virtual/compleanno/amico ({dettaglio})")
 
     return results, "ok"
 
@@ -1657,6 +1706,8 @@ def main():
             if categoria == "Benvenuto":
                 o["categoria"] = categoria
         path_words = urlparse(o.get("url", "")).path.replace("-", " ")
+        if motivo_esclusione(o.get("title", ""), snippet, o.get("image", ""), o.get("terms", ""), categoria):
+            return False
         welcome_text = text + " " + raw_note + " " + path_words
         if o.get("snippet") is None:
             # promo salvata senza il testo della card: si guarda anche l'inizio dei T&C
